@@ -5,7 +5,7 @@
 **Folory**, yazarlar ve okuyucular için tasarlanmış modern bir hikaye paylaşım platformudur. Bu monolitik versiyon, Next.js (frontend) ve Laravel (backend) tek bir repo içinde birleştirilmiştir.
 
 ## Proje Linki
-[https://github.com/erenpadem/folory-monolith](https://github.com/erenpadem/folory-monolith)
+[https://github.com/erenpadem/folory-app](https://github.com/erenpadem/folory-app)
 
 ## Özellikler
 
@@ -21,7 +21,7 @@
 ## Proje Yapısı
 
 ```
-folory-monolith/
+folory-app/
 ├── frontend/       # Next.js uygulaması
 ├── backend/        # Laravel uygulaması
 ├── docker/         # Docker konfigürasyonları
@@ -54,8 +54,8 @@ folory-monolith/
 
 ### 2. Projeyi Klonlama
 ```bash
-git clone https://github.com/erenpadem/folory-monolith.git
-cd folory-monolith
+git clone https://github.com/erenpadem/folory-app.git
+cd folory-app
 ```
 
 ### 3. Backend Kurulumu
