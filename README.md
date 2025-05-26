@@ -42,7 +42,7 @@ folory-monolith/
 - **Framework**: Laravel 10
 - **Authentication**: Laravel Sanctum
 - **API**: RESTful API
-- **Database**: MySQL
+- **Database**: PostgreSQL
 
 ## Kurulum
 
@@ -142,14 +142,6 @@ cd frontend
 npm run test
 ```
 
-## Katkıda Bulunma
-
-1. Fork oluşturun
-2. Yeni bir branch oluşturun (`git checkout -b feature/AmazingFeature`)
-3. Değişikliklerinizi commit edin (`git commit -m 'Add some AmazingFeature'`)
-4. Branch'inize push yapın (`git push origin feature/AmazingFeature`)
-5. Pull Request açın
-
 ## Lisans
 
 Bu proje [MIT lisansı](LICENSE) ile lisanslanmıştır.
@@ -158,7 +150,7 @@ Bu proje [MIT lisansı](LICENSE) ile lisanslanmıştır.
 
 Proje sahibi: Eren Padem  
 GitHub: [@erenpadem](https://github.com/erenpadem)  
-Email: erenpadem@example.com
+Email: erenpadem@gmail.com
 
 ---
 
