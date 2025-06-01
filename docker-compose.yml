@@ -27,7 +27,8 @@ services:
         - user=laravel
         - uid=1000
     volumes:
-      - ./backend:/var/www/html
+    - ./backend:/var/www/html
+    user: "1000:1000"
     environment:
       - DB_CONNECTION=pgsql
       - DB_HOST=postgres
@@ -59,9 +60,12 @@ services:
   postgres:
     image: postgres:14
     environment:
-      POSTGRES_DB: folory
-      POSTGRES_USER: folory
-      POSTGRES_PASSWORD: secret
+            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+    ports:
+      - "5432:5432"      
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
