@@ -1,7 +1,41 @@
 version: "3.8"
 
 services:
-  # FRONTEND (Next.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: docker/development/workspace/Dockerfile
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_CONNECTION=${DB_CONNECTION}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - APP_URL=http://localhost:8081
+    networks:
+      - folory-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  webserver:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./backend/docker/development/nginx:/etc/nginx/conf.d
+    depends_on:
+      - backend
+    networks:
+      - folory-network
+
   frontend:
     build:
       context: ./frontend
@@ -18,84 +52,31 @@ services:
     depends_on:
       - backend
 
-  # BACKEND (Laravel + PHP-FPM)
-  backend:
-    build:
-      context: ./backend
-      dockerfile: docker/development/workspace/Dockerfile
-      args:
-        - user=laravel
-        - uid=1000
-    volumes:
-    - ./backend:/var/www/html
-    user: "1000:1000"
-    environment:
-      - DB_CONNECTION=pgsql
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - REDIS_HOST=redis
-      - KAFKA_BROKERS=kafka:9092
-    networks:
-      - folory-network
-    depends_on:
-      - postgres
-      - redis
-      - kafka
-
-  # NGINX (Reverse Proxy)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./backend/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./frontend/nginx/default.conf:/etc/nginx/conf.d/frontend.conf
-    networks:
-      - folory-network
-    depends_on:
-      - frontend
-      - backend
-
-  # POSTGRESQL
   postgres:
     image: postgres:14
     environment:
-            PGPASSWORD: '${DB_PASSWORD:-secret}'
-            POSTGRES_DB: '${DB_DATABASE}'
-            POSTGRES_USER: '${DB_USERNAME}'
-            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
-    ports:
-      - "5432:5432"      
+      POSTGRES_DB: '${DB_DATABASE}'
+      POSTGRES_USER: '${DB_USERNAME}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U laravel -d laravel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - folory-network
 
-  # REDIS
   redis:
-    image: redis:6
+    image: redis:6-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - redis_data:/data
-    networks:
-      - folory-network
-
-  # KAFKA
-  kafka:
-    image: bitnami/kafka:3.4
-    environment:
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-    networks:
-      - folory-network
-    depends_on:
-      - zookeeper
-
-  # ZOOKEEPER
-  zookeeper:
-    image: bitnami/zookeeper:3.8
-    environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
       - folory-network
 

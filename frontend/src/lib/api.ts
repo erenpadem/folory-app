@@ -1,46 +1,55 @@
 import axios from 'axios'
+import toast from 'react-hot-toast'
 
 const api = axios.create({
-  baseURL: 'https://api.seninprojen.com', 
+  baseURL: 'http://localhost:8081',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Request interceptor (örneğin token eklemek için)
+// Request interceptor (gerekirse token eklenebilir)
 api.interceptors.request.use(config => {
   // const token = localStorage.getItem('token')
   // if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// Response interceptor - hata yakalama ve yönetme
+// Response interceptor - toast ile hata bildirimleri
 api.interceptors.response.use(
   response => response,
   error => {
     if (error.response) {
-      // Backend hata döndürdü
       const status = error.response.status
       switch (status) {
         case 400:
-          console.error('Hatalı istek')
+          toast.error('Hatalı istek')
           break
         case 401:
-          console.error('Yetkisiz erişim - giriş yapmanız gerekiyor')
+          toast.error('Yetkisiz erişim – lütfen giriş yapın')
+          break
+        case 403:
+          toast.error('Erişim engellendi')
+          break
+        case 404:
+          toast.error('İstek yapılan veri bulunamadı')
+          break
+        case 422:
+          toast.error('Doğrulama hatası')
           break
         case 500:
-          console.error('Sunucu hatası, daha sonra tekrar deneyin')
+          toast.error('Sunucu hatası – daha sonra tekrar deneyin')
           break
         default:
-          console.error('Bilinmeyen hata:', error.response.data)
+          toast.error('Bilinmeyen bir hata oluştu')
       }
     } else if (error.request) {
-      // Sunucuya ulaşılamadı
-      console.error('Sunucuya ulaşılamıyor, internet bağlantını kontrol et')
+      toast.error('Sunucuya ulaşılamıyor – internet bağlantınızı kontrol edin')
     } else {
-      console.error('İstek oluşturulurken hata:', error.message)
+      toast.error(`İstek hatası: ${error.message}`)
     }
-    // Hata detayını çağıran yere ilet
+
     return Promise.reject(error)
   }
 )

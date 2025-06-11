@@ -85,7 +85,7 @@ docker-compose exec backend php artisan migrate --seed
 
 ### 7. Uygulamayı Başlatma
 ```bash
-# Backend (http://localhost:8000)
+# Backend (http://localhost:8081)
 docker-compose exec backend php artisan serve --host=0.0.0.0
 
 # Frontend (http://localhost:3000)
@@ -103,7 +103,7 @@ APP_NAME=Folory
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
-APP_URL=http://localhost:8000
+APP_URL=http://localhost:8081
 
 DB_CONNECTION=mysql
 DB_HOST=mysql
@@ -113,7 +113,7 @@ DB_USERNAME=root
 DB_PASSWORD=secret
 
 # Next.js
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8081
 NEXT_PUBLIC_SITE_NAME=Folory
 ```
 

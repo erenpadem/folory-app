@@ -10,11 +10,11 @@ export const RegisterSchema = z
     name: z.string().min(2, 'Ad en az 2 karakter olmalıdır'),
     email: z.string().email('Geçerli bir e-posta adresi girin'),
     password: z.string().min(8, 'Şifre en az 8 karakter olmalıdır'),
-    confirmPassword: z.string(),
+    password_confirmation: z.string(),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((data) => data.password === data.password_confirmation, {
     message: 'Şifreler eşleşmiyor',
-    path: ['confirmPassword'],
+    path: ['password_confirmation'],
   })
 
 export const ForgotPasswordSchema = z.object({

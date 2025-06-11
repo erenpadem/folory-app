@@ -21,9 +21,10 @@ type AuthFormProps = {
   type: 'login' | 'register' | 'forgot' | 'verify'
   onSubmit: (data: LoginType | RegisterType | ForgotPasswordType | VerifyType) => void
   footer?: React.ReactNode
+  loading?: boolean  // yeni eklendi
 }
 
-export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
+export function AuthForm({ type, onSubmit, footer, loading = false }: AuthFormProps) {
   const form = useForm<LoginType | RegisterType | ForgotPasswordType | VerifyType>({
     resolver: zodResolver(
       type === 'login' ? LoginSchema :
@@ -33,7 +34,7 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
     ),
     defaultValues: {
       ...(type === 'login' && { email: '', password: '' }),
-      ...(type === 'register' && { name: '', email: '', password: '', confirmPassword: '' }),
+      ...(type === 'register' && { name: '', email: '', password: '', password_confirmation: '' }),
       ...(type === 'forgot' && { email: '' }),
       ...(type === 'verify' && { code: '' }),
     },
@@ -50,7 +51,7 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
               <FormItem>
                 <FormLabel>Ad Soyad</FormLabel>
                 <FormControl>
-                  <Input placeholder="Adınız ve soyadınız" {...field} />
+                  <Input placeholder="Adınız ve soyadınız" {...field} disabled={loading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -66,7 +67,7 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
               <FormItem>
                 <FormLabel>E-posta</FormLabel>
                 <FormControl>
-                  <Input placeholder="email@example.com" {...field} />
+                  <Input placeholder="email@example.com" {...field} disabled={loading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -82,7 +83,7 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
               <FormItem>
                 <FormLabel>Şifre</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -93,12 +94,12 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
         {type === 'register' && (
           <FormField
             control={form.control}
-            name="confirmPassword"
+            name="password_confirmation"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Şifre Tekrar</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -114,7 +115,7 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
               <FormItem>
                 <FormLabel>Doğrulama Kodu</FormLabel>
                 <FormControl>
-                  <AuthVerify {...field} />
+                  <AuthVerify {...field} disabled={loading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -122,11 +123,17 @@ export  function AuthForm({ type, onSubmit, footer }: AuthFormProps) {
           />
         )}
 
-        <Button type="submit" className="w-full">
-          {type === 'login' && 'Giriş Yap'}
-          {type === 'register' && 'Kayıt Ol'}
-          {type === 'forgot' && 'Şifre Sıfırlama Bağlantısı Gönder'}
-          {type === 'verify' && 'Doğrula'}
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? (
+            <span>Yükleniyor...</span>
+          ) : (
+            <>
+              {type === 'login' && 'Giriş Yap'}
+              {type === 'register' && 'Kayıt Ol'}
+              {type === 'forgot' && 'Şifre Sıfırlama Bağlantısı Gönder'}
+              {type === 'verify' && 'Doğrula'}
+            </>
+          )}
         </Button>
 
         {footer && footer}
