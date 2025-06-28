@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Button } from "../ui/button";
-
 export function FinalCTA() {
   return (
     <section className="py-8 relative overflow-hidden bg-background">
@@ -28,7 +27,7 @@ export function FinalCTA() {
             <Link href={'/auth/login'}>Ücretsiz Kaydol</Link>
           </Button>
           <Button size="lg" variant="outline" className="border-primary-foreground/20 hover:bg-primary-foreground/10">
-            Yaz
+          <Link href={'/dashboard/stories/new'}>Yaz</Link> 
           </Button>
         </div>
       </div>

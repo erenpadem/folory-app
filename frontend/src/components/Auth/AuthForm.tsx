@@ -16,114 +16,130 @@ import {
   type ForgotPasswordType,
   type VerifyType
 } from '@/lib/validations/auth'
+import { useAuthStore } from '@/stores/auth.store'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
-type AuthFormProps = {
-  type: 'login' | 'register' | 'forgot' | 'verify'
-  onSubmit: (data: LoginType | RegisterType | ForgotPasswordType | VerifyType) => void
-  footer?: React.ReactNode
-  loading?: boolean  // yeni eklendi
+type AuthFormType = 'login' | 'register' | 'forgot' | 'verify'
+type AuthFormValues = LoginType | RegisterType | ForgotPasswordType | VerifyType
+
+const formSchemas = {
+  login: LoginSchema,
+  register: RegisterSchema,
+  forgot: ForgotPasswordSchema,
+  verify: VerifySchema
 }
 
-export function AuthForm({ type, onSubmit, footer, loading = false }: AuthFormProps) {
-  const form = useForm<LoginType | RegisterType | ForgotPasswordType | VerifyType>({
-    resolver: zodResolver(
-      type === 'login' ? LoginSchema :
-      type === 'register' ? RegisterSchema :
-      type === 'forgot' ? ForgotPasswordSchema :
-      VerifySchema
-    ),
-    defaultValues: {
-      ...(type === 'login' && { email: '', password: '' }),
-      ...(type === 'register' && { name: '', email: '', password: '', password_confirmation: '' }),
-      ...(type === 'forgot' && { email: '' }),
-      ...(type === 'verify' && { code: '' }),
-    },
+const defaultValues: Record<AuthFormType, Partial<AuthFormValues>> = {
+  login: { email: '', password: '' },
+  register: { name: '', email: '', password: '', password_confirmation: '' },
+  forgot: { email: '' },
+  verify: { code: '' }
+}
+
+interface AuthFormProps {
+  type: AuthFormType
+  onSuccess?: () => void
+  footer?: React.ReactNode
+  redirectOnSuccess?: string
+}
+
+export function AuthForm({ 
+  type, 
+  onSuccess, 
+  footer, 
+  redirectOnSuccess 
+}: AuthFormProps) {
+  const router = useRouter()
+  const { login, register, loading } = useAuthStore()
+  
+  const form = useForm<AuthFormValues>({
+    resolver: zodResolver(formSchemas[type]),
+    defaultValues: defaultValues[type]
   })
+
+  const handleSubmit = async (values: AuthFormValues) => {
+    try {
+      if (type === 'login') {
+        await login(values as LoginType)
+        toast.success('Giriş başarılı!')
+      } 
+      else if (type === 'register') {
+        await register(values as RegisterType)
+        toast.success('Kayıt başarılı! Giriş yapabilirsiniz')
+      }
+      // Handle other auth types if needed
+
+      onSuccess?.()
+      if (redirectOnSuccess) {
+        router.push(redirectOnSuccess)
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Bir hata oluştu')
+      form.setError('root', {
+        type: 'manual',
+        message: error?.response?.data?.message || 'Authentication failed'
+      })
+    }
+  }
+
+  const renderFormField = (name: keyof AuthFormValues, props?: any) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>
+            {name === 'name' ? 'Ad Soyad' :
+             name === 'email' ? 'E-posta' :
+             name === 'password' ? 'Şifre' :
+             name === 'password_confirmation' ? 'Şifre Tekrar' :
+             'Doğrulama Kodu'}
+          </FormLabel>
+          <FormControl>
+            {name === 'code' ? (
+              <AuthVerify {...field} disabled={loading} />
+            ) : (
+              <Input
+                type={name.includes('password') ? 'password' : 'text'}
+                placeholder={
+                  name === 'email' ? 'email@example.com' :
+                  name.includes('password') ? '••••••••' :
+                  name === 'name' ? 'Adınız ve soyadınız' : ''
+                }
+                {...field}
+                disabled={loading}
+                {...props}
+              />
+            )}
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {type === 'register' && (
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ad Soyad</FormLabel>
-                <FormControl>
-                  <Input placeholder="Adınız ve soyadınız" {...field} disabled={loading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        {type === 'register' && renderFormField('name')}
+        {(type === 'login' || type === 'register' || type === 'forgot') && renderFormField('email')}
+        {(type === 'login' || type === 'register') && renderFormField('password')}
+        {type === 'register' && renderFormField('password_confirmation')}
+        {type === 'verify' && renderFormField('code')}
+
+        {form.formState.errors.root && (
+          <p className="text-sm font-medium text-destructive">
+            {form.formState.errors.root.message}
+          </p>
         )}
 
-        {(type === 'login' || type === 'register' || type === 'forgot') && (
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>E-posta</FormLabel>
-                <FormControl>
-                  <Input placeholder="email@example.com" {...field} disabled={loading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        {(type === 'login' || type === 'register') && (
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Şifre</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        {type === 'register' && (
-          <FormField
-            control={form.control}
-            name="password_confirmation"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Şifre Tekrar</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        {type === 'verify' && (
-          <FormField
-            control={form.control}
-            name="code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Doğrulama Kodu</FormLabel>
-                <FormControl>
-                  <AuthVerify {...field} disabled={loading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button 
+          type="submit" 
+          className="w-full" 
+          disabled={loading}
+          aria-disabled={loading}
+        >
           {loading ? (
             <span>Yükleniyor...</span>
           ) : (

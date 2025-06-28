@@ -33,9 +33,9 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json(['user' => $request->user()]);
     }
-
+    
 
     public function login(Request $request)
     {
@@ -61,9 +61,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // Bu request'teki token'ı iptal eder (sanctum ile)
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json(['message' => 'Çıkış yapıldı']);
+        return response()->noContent();
     }
 }

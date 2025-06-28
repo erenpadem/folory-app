@@ -2,7 +2,7 @@ import { DollarSign, Users } from "lucide-react";
 
 export function ComingSoon() {
     return (
-      <section className="py-8">
+      <section className="py-8" id="coming-soon">
         <div className="container">
           <h2 className="text-4xl font-bold mb-4 text-center">Yakında Gelecekler</h2>
           <p className="text-xl text-muted-foreground mb-12 text-center">

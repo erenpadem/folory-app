@@ -1,8 +1,19 @@
+"use client"
 import React from 'react'
 import { Button } from "@/components/ui/button"
 import Image from "next/image";
+import { useRouter } from 'next/navigation'
 
 export default function Header() {
+    const router = useRouter();
+
+    const navigateToExplore = () => {
+        router.push('explore')
+    }
+    const navigateToWrite
+        = () => {
+            router.push('/auth/login')
+        }
     return (
         <div className="relative py-10 bg grid grid-cols-12 items-start justify-between min-h-[80vh]">
             {/* Gradient Background */}
@@ -26,8 +37,8 @@ export default function Header() {
                     </h3>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-x-3">
-                    <Button size={'lg'} variant={'default'}>Başla</Button>
-                    <Button size={'lg'} variant={'secondary'} >Keşfet</Button>
+                    <Button onClick={ () => navigateToWrite()} size={'lg'} variant={'default'}>Başla</Button>
+                    <Button onClick={ () => navigateToExplore()} size={'lg'} variant={'secondary'} >Keşfet</Button>
                 </div>
             </div>
             <div className="col-span-8 hidden md:flex items-center justify-end">

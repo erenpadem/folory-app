@@ -5,6 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: docker/development/workspace/Dockerfile
+    image: folory-backend  # <-- Burada image adı tanımlanıyor
     volumes:
       - ./backend:/var/www/html
     environment:
@@ -40,6 +41,7 @@ services:
     build:
       context: ./frontend
       target: dev
+    image: folory-frontend  # <-- Burada image adı tanımlanıyor
     ports:
       - "3000:3000"
     volumes:
