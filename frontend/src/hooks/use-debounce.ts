@@ -1,36 +1,40 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
-export const debounce = <T extends (...args: any[]) => void>(
-  func: T,
-  delay: number,
-  options?: { leading?: boolean }
-) => {
-  const timeoutRef = useRef<NodeJS.Timeout>(null);
-  const leadingCallRef = useRef(true);
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  return useCallback((...args: Parameters<T>) => {
-    if (options?.leading && leadingCallRef.current) {
-      leadingCallRef.current = false;
-      func(...args);
-      return;
-    }
-
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    timeoutRef.current = setTimeout(() => {
-      leadingCallRef.current = true;
-      func(...args);
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
     }, delay);
-  }, [func, delay, options?.leading]);
-};
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+/**
+ * Debounce utility function
+ * Creates a debounced version of a function that delays execution until after wait time
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
+}

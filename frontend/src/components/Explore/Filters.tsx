@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useSearchParams, useRouter } from 'next/navigation'
 import { debounce } from "@/hooks/use-debounce"
 
@@ -68,22 +68,39 @@ export function FilterPanel({ onApplyFilters, initialFilters }: FilterPanelProps
   })
 
   const statusOptions = [
-    { value: 'ongoing', label: 'Devam Ediyor' },
-    { value: 'completed', label: 'Tamamlandı' },
-    { value: 'hiatus', label: 'Ara Verdi' }
+    { value: 'published', label: 'Yayında' },
+    { value: 'draft', label: 'Taslak' }
   ]
+
+  const updateURL = useCallback((filters: Filters) => {
+    const params = new URLSearchParams()
+  
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== 'popular' && value !== false && value !== 0) {
+        params.set(key, String(value))
+      }
+    })
+  
+    const queryString = params.toString()
+    router.push(queryString ? `?${queryString}` : window.location.pathname, { scroll: false })
+  }, [router])
+
+  const debouncedUpdateURL = useMemo(
+    () => debounce(updateURL, 300),
+    [updateURL]
+  )
 
   useEffect(() => {
     if (!isOpen) { // Sadece panel kapalıyken güncelle
-      updateURL(filters)
+      debouncedUpdateURL(filters)
     }
-  }, [filters, isOpen])
+  }, [filters, isOpen, debouncedUpdateURL])
 
 
   const applyFilters = () => {
     onApplyFilters(filters)
     setIsOpen(false)
-    updateURL(filters)
+    updateURL(filters) // Immediate update when applying
   }
 
   const resetFilters = () => {
@@ -99,22 +116,8 @@ export function FilterPanel({ onApplyFilters, initialFilters }: FilterPanelProps
     }
     setFilters(defaultFilters)
     onApplyFilters(defaultFilters)
-    updateURL(defaultFilters)
+    updateURL(defaultFilters) // Immediate update when resetting
   }
-
-
-  const updateURL = debounce((filters: Filters) => {
-    const params = new URLSearchParams()
-  
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== 'popular') {
-        params.set(key, String(value))
-      }
-    })
-  
-    const queryString = params.toString()
-    router.push(`?${queryString}`, { scroll: false })
-  }, 300)
 
 
 
@@ -152,7 +155,7 @@ export function FilterPanel({ onApplyFilters, initialFilters }: FilterPanelProps
         <div className="space-y-6">
           {/* Durum Filtresi */}
           <div>
-            <label className="block text-sm font-medium mb-2">Hikaye Durumu</label>
+            <label className="block text-sm font-medium mb-2">Yayın Durumu</label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button

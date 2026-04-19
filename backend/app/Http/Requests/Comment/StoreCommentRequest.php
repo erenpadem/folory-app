@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Http\Requests\Comment;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreCommentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'book_id' => 'required|exists:books,id',
+            'content' => 'required|string|max:2000',
+            'parent_id' => 'nullable|exists:comments,id',
+        ];
+    }
+}
+

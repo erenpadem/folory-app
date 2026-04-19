@@ -1,9 +1,21 @@
 'use client'
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import { BookOpen } from "lucide-react";
+import { useBookEditorStore } from "@/features/books/presentation/stores/book-editor.store";
 
  function Footer() {
+    const pathname = usePathname();
+    const currentStep = useBookEditorStore((s) => s.currentStep);
+    const isBookWizardRoute =
+        pathname === "/dashboard/books/new" ||
+        (pathname?.startsWith("/dashboard/books/update/") ?? false);
+    const isBookWizardWriteStep = isBookWizardRoute && currentStep === 4;
+    if (isBookWizardWriteStep) {
+        return null;
+    }
+
     return (
       <footer className="py-8 bg-background border-t">
         <div className="container">

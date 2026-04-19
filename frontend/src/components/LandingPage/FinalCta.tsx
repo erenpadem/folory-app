@@ -12,7 +12,13 @@ export function FinalCTA() {
             WebkitMaskImage: 'radial-gradient(ellipse at center, primary-foreground 30%, transparent 80%)'
           }}
         />
-        <div className="absolute inset-0 bg-[url('/assets/noise.png')] opacity-10 mix-blend-overlay" />
+        <div
+          className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none"
+          aria-hidden
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          }}
+        />
       </div>
 
       <div className="container text-center relative z-10">
@@ -27,7 +33,7 @@ export function FinalCTA() {
             <Link href={'/auth/login'}>Ücretsiz Kaydol</Link>
           </Button>
           <Button size="lg" variant="outline" className="border-primary-foreground/20 hover:bg-primary-foreground/10">
-          <Link href={'/dashboard/stories/new'}>Yaz</Link> 
+          <Link href="/dashboard/books/new">Yaz</Link>
           </Button>
         </div>
       </div>

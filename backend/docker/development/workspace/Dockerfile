@@ -1,31 +1,50 @@
-FROM php:8.2-fpm
+FROM php:8.3-fpm-bullseye
+
 
 ARG user=laravel
 ARG uid=1000
 
-RUN apt-get update && apt-get install -y \
-    git curl libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    libonig-dev libxml2-dev zip unzip supervisor nginx \
-    build-essential openssl libpq-dev postgresql-client \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_pgsql pgsql sockets mbstring xml opcache \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN set -ex \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        curl \
+        unzip \
+        zip \
+        supervisor \
+        nginx \
+        build-essential \
+        ca-certificates \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libxml2-dev \
+        libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /var/run/nginx /var/cache/nginx /var/run/supervisor \
-    && touch /var/run/nginx.pid \
-    && useradd -G www-data,root -u $uid -d /home/$user -s /bin/bash $user \
+# PHP-FPM socket directory
+RUN mkdir -p /run/php && chown www-data:www-data /run/php
+
+# Add Laravel user
+RUN useradd -G www-data,root -u $uid -d /home/$user -s /bin/bash $user \
     && mkdir -p /home/$user/.composer \
-    && chown -R $user:$user /home/$user \
-    && mkdir -p /var/log/php-fpm /var/log/nginx /var/log/supervisor \
-    && touch /var/log/php-fpm/access.log /var/log/php-fpm/error.log \
-    && touch /var/log/nginx/access.log /var/log/nginx/error.log \
-    && touch /var/log/supervisor/supervisord.log \
-    && chown -R $user:$user /var/log/php-fpm /var/log/nginx /var/log/supervisor /var/run/nginx /var/cache/nginx /var/run/supervisor
+    && chown -R $user:$user /home/$user
 
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Logs
+RUN mkdir -p /var/log/nginx /var/log/php-fpm /var/log/supervisor \
+    && chown -R www-data:www-data /var/log/nginx \
+    && touch /var/log/supervisor/supervisord.log
+
+# Composer - Install directly for ARM64 compatibility
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
 WORKDIR /var/www/html
 
+# Laravel deps
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
@@ -34,9 +53,9 @@ COPY . .
 RUN chown -R $user:$user /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 
+# Configs
 COPY docker/development/nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY docker/development/workspace/supervisord.conf /etc/supervisord.conf
+COPY docker/development/workspace/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+COPY docker/development/workspace/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-USER root
-
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-n"]

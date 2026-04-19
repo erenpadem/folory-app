@@ -8,7 +8,7 @@ export default function Header() {
     const router = useRouter();
 
     const navigateToExplore = () => {
-        router.push('explore')
+        router.push('/explore')
     }
     const navigateToWrite
         = () => {

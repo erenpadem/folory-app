@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->string('cover_image')->nullable();
             $table->text('bio')->nullable();
-            $table->boolean('is_author')->default(false);
+            $table->enum('role', ['author', 'reader'])->default('reader');
+            $table->boolean('is_verified')->default(false);
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes(); // Silinenler için

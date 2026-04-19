@@ -1,16 +1,16 @@
+// components/story/StoryCommentsTab.tsx
+'use client'
+
 import { useState } from "react"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CommentItem } from "./CommentItem"
-import { Story } from "@/types/story"
+import { useStoryEditorStore } from "@/stores/story.store"
 
-interface StoryCommentsTabProps {
-  story: Story
-}
-
-export function StoryCommentsTab({ story }: StoryCommentsTabProps) {
+export function StoryCommentsTab() {
+  const { story, addComment, addReply } = useStoryEditorStore()
   const [comment, setComment] = useState('')
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState('')
@@ -18,9 +18,31 @@ export function StoryCommentsTab({ story }: StoryCommentsTabProps) {
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!comment.trim()) return
-
-    // In a real app, you would handle this with an API call
+    
+    addComment({
+      id: `comment-${Date.now()}`,
+      author: "You",
+      content: comment,
+      date: new Date().toISOString(),
+      likes: 0,
+      replies: []
+    })
     setComment('')
+  }
+
+  const handleReplySubmit = (e: React.FormEvent, commentId: string) => {
+    e.preventDefault()
+    if (!replyContent.trim()) return
+    
+    addReply(commentId, {
+      id: `reply-${Date.now()}`,
+      author: "You",
+      content: replyContent,
+      date: new Date().toISOString(),
+      likes: 0
+    })
+    setReplyingTo(null)
+    setReplyContent('')
   }
 
   return (
@@ -58,13 +80,7 @@ export function StoryCommentsTab({ story }: StoryCommentsTabProps) {
             onReplyToggle={setReplyingTo}
             replyContent={replyContent}
             onReplyContentChange={setReplyContent}
-            onReplySubmit={(e) => {
-              e.preventDefault()
-              if (!replyContent.trim()) return
-              // Handle reply submission
-              setReplyingTo(null)
-              setReplyContent('')
-            }}
+            onReplySubmit={(e) => handleReplySubmit(e, comment.id)}
           />
         ))}
       </div>

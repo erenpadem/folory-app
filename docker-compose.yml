@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -9,14 +7,14 @@ services:
     volumes:
       - ./backend:/var/www/html
     environment:
-      - DB_CONNECTION=${DB_CONNECTION}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - APP_URL=http://localhost:8081
+      - DB_CONNECTION=${DB_CONNECTION:-pgsql}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_DATABASE=${DB_DATABASE:-laravel}
+      - DB_USERNAME=${DB_USERNAME:-laravel}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - APP_URL=${APP_URL:-http://localhost:8081}
     networks:
       - folory-network
     depends_on:
@@ -26,9 +24,9 @@ services:
         condition: service_healthy
 
   webserver:
-    image: nginx:alpine
+    image: nginx:latest
     ports:
-      - "8081:80"
+      - "${WEBSERVER_PORT:-8081}:80"
     volumes:
       - ./backend:/var/www/html
       - ./backend/docker/development/nginx:/etc/nginx/conf.d
@@ -43,12 +41,13 @@ services:
       target: dev
     image: folory-frontend  # <-- Burada image adı tanımlanıyor
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8081}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     networks:
       - folory-network
     depends_on:
@@ -56,12 +55,15 @@ services:
 
   postgres:
     image: postgres:14
+    ports:
+        - "5432:5432"
     environment:
-      POSTGRES_DB: '${DB_DATABASE}'
-      POSTGRES_USER: '${DB_USERNAME}'
+      POSTGRES_DB: '${DB_DATABASE:-laravel}'
+      POSTGRES_USER: '${DB_USERNAME:-laravel}'
       POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U laravel -d laravel"]
+      # POSTGRES_* ile aynı kullanıcı/veritabanı (root .env'deki DB_* ile uyumlu olmalı)
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10

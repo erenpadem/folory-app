@@ -1,67 +1,98 @@
 <?php
-
 namespace App\Models;
-use Laravel\Sanctum\HasApiTokens;
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use Illuminate\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Str;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmailContract
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, MustVerifyEmail, Notifiable, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'username',
         'email',
+        'phone',
         'password',
+        'avatar',
+        'cover_image',
+        'bio',
+        'role',
+        'is_verified',
+        'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $hidden = ['password', 'remember_token'];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'is_verified' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    // --- Relationships ---
+
+    public function followers()
     {
+        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id')
+            ->withTimestamps();
+    }
+
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id')
+            ->withTimestamps();
+    }
+
+    public function badges()
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges')->withTimestamps();
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function unreadNotifications()
+    {
+        return $this->notifications()->whereNull('read_at');
+    }
+
+    public function books()
+    {
+        return $this->hasMany(Book::class, 'author_id');
+    }
+
+    /**
+     * @return array{total: int, published: int, draft: int}
+     */
+    public function bookStats(): array
+    {
+        $published = (int) $this->books()->where('is_published', true)->count();
+        $draft = (int) $this->books()->where('is_published', false)->count();
+
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'total' => $published + $draft,
+            'published' => $published,
+            'draft' => $draft,
         ];
     }
-    protected static function booted()
+
+    // --- Helpers ---
+
+    public function isAuthor(): bool
     {
-        static::creating(function ($user) {
-            if (empty($user->username)) {
-                $baseUsername = Str::slug($user->name);
+        return $this->role === 'author';
+    }
 
-                $username = $baseUsername;
-                $counter = 1;
-
-                while (self::where('username', $username)->exists()) {
-                    $username = $baseUsername . $counter++;
-                }
-
-                $user->username = $username;
-            }
-        });
+    public function isReader(): bool
+    {
+        return $this->role === 'reader';
     }
 }

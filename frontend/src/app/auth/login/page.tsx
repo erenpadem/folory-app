@@ -8,8 +8,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import MeshBackground from '@/components/Styling/MeshBackground'
 import toast from 'react-hot-toast'
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
+import { useAuth } from '@/features/auth'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function LoginPage() {
@@ -19,29 +19,36 @@ export default function LoginPage() {
     loading, 
     user, 
     isAuthenticated,
-    error,
-    clearError
   } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const authTab = searchParams.get('tab') === 'register' ? 'register' : 'login'
+  const returnToParam = searchParams.get('returnTo')
+  const registerTabHref =
+    returnToParam !== null
+      ? `/auth/login?tab=register&returnTo=${encodeURIComponent(returnToParam)}`
+      : '/auth/login?tab=register'
+  const loginTabHref =
+    returnToParam !== null
+      ? `/auth/login?tab=login&returnTo=${encodeURIComponent(returnToParam)}`
+      : '/auth/login?tab=login'
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push('/')
+      const returnTo = searchParams.get('returnTo')
+      if (returnTo) {
+        router.push(returnTo)
+      } else {
+        router.push('/')
+      }
     }
-  }, [isAuthenticated, user, router])
-
-  // Show error toast if exists
-  useEffect(() => {
-    if (error) {
-      toast.error(error)
-      clearError()
-    }
-  }, [error, clearError])
+  }, [isAuthenticated, user, router, searchParams])
 
   const handleLogin = async (credentials: { email: string; password: string }) => {
     try {
       await login(credentials)
       toast.success('Giriş başarılı! Yönlendiriliyorsunuz...')
+      // Redirect will be handled by useEffect
     } catch (err) {
       // Error is already handled by the auth store
     }
@@ -69,7 +76,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl text-center">Folory</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs defaultValue={authTab} key={authTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Giriş Yap</TabsTrigger>
               <TabsTrigger value="register">Kayıt Ol</TabsTrigger>
@@ -85,22 +92,12 @@ export default function LoginPage() {
                       <Link href="/auth/forgot-password">Şifremi unuttum</Link>
                     </Button>
                     <Button variant="link" className="px-0 text-sm" asChild>
-                      <Link href="/auth/register">Hesabın yok mu?</Link>
+                      <Link href={registerTabHref}>Hesabın yok mu?</Link>
                     </Button>
                   </div>
                 }
                 loading={loading}
               />
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Veya
-                  </span>
-                </div>
-              </div>
               <AuthSocial loading={loading} />
             </TabsContent>
 
@@ -110,21 +107,11 @@ export default function LoginPage() {
                 onSubmit={handleRegister}
                 footer={
                   <Button variant="link" className="px-0 text-sm" asChild>
-                    <Link href="/auth/login">Zaten hesabın var mı?</Link>
+                    <Link href={loginTabHref}>Zaten hesabın var mı?</Link>
                   </Button>
                 }
                 loading={loading}
               />
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Veya
-                  </span>
-                </div>
-              </div>
               <AuthSocial loading={loading} />
             </TabsContent>
           </Tabs>

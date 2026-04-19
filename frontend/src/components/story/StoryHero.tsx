@@ -1,9 +1,11 @@
-import { Bookmark, BookmarkCheck, Heart, MoreVertical, Play, Share2, Star,FlagIcon,UserIcon,TrashIcon } from "lucide-react"
+// components/story/StoryHero.tsx
+'use client'
+
+import { Bookmark, BookmarkCheck, Heart, MoreVertical, Play, Share2, Star, FlagIcon, UserIcon, TrashIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
-import { Story } from "@/types/story"
 import {
   Dialog,
   DialogClose,
@@ -16,30 +18,23 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useStoryEditorStore } from "@/stores/story.store"
 
-interface StoryHeroProps {
-  story: Story
-  isSaved: boolean
-  isLiked: boolean
-  onSave: () => void
-  onLike: () => void
-  showFullDescription: boolean
-  onToggleDescription: () => void
-}
+export function StoryHero() {
+  const { 
+    story, 
+    isSaved, 
+    isLiked, 
+    showFullDescription,
+    toggleSave,
+    toggleLike,
+    toggleDescription 
+  } = useStoryEditorStore()
 
-export function StoryHero({
-  story,
-  isSaved,
-  isLiked,
-  onSave,
-  onLike,
-  showFullDescription,
-  onToggleDescription
-}: StoryHeroProps) {
-  // Basit ikon bileşenleri (lucide-react kullanarak)
   const TwitterIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" /></svg>
 
   const FacebookIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
+
   return (
     <div className="container pb-8">
       <div className="flex flex-col md:flex-row gap-8">
@@ -76,11 +71,10 @@ export function StoryHero({
               <p className="text-lg text-muted-foreground">{story.author}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="icon" onClick={onSave}>
+              <Button variant="ghost" size="icon" onClick={toggleSave}>
                 <Bookmark className={`h-5 w-5 ${isSaved ? 'fill-current' : ''}`} />
               </Button>
 
-     
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -184,7 +178,7 @@ export function StoryHero({
                 variant={isLiked ? "default" : "outline"}
                 size="sm"
                 className="gap-2"
-                onClick={onLike}
+                onClick={toggleLike}
               >
                 <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                 Beğen
@@ -200,7 +194,7 @@ export function StoryHero({
               variant="link"
               size="sm"
               className="h-auto p-0 text-sm"
-              onClick={onToggleDescription}
+              onClick={toggleDescription}
             >
               {showFullDescription ? 'Daha az göster' : 'Devamını oku'}
             </Button>

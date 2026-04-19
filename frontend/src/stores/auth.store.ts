@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { authService } from '@/services/auth.service';
 import type { User } from '@/types/auth';
 import type { LoginCredentials, RegisterData } from '@/lib/validations/auth';
+import userApi from '@/lib/api';
 
 interface AuthState {
   user: User | null;
@@ -16,6 +17,7 @@ interface AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
   logout: () => Promise<void>;
+  fetchUserProfile: (userId: string) => Promise<User>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,6 +31,22 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       
       clearError: () => set({ error: null }),
+
+      fetchUserProfile: async (userId: string) => {
+        try {
+          set({ loading: true, error: null });
+          const user = await userApi.fetchUserProfile(userId);
+          if (userId === get().user?.id) {
+            set({ user, isAuthenticated: true });
+          }
+          return user;
+        } catch (error: any) {
+          set({ error: error?.message || 'Failed to fetch user profile' });
+          throw error;
+        } finally {
+          set({ loading: false });
+        }
+      },
 
       fetchUser: async () => {
         try {
@@ -52,7 +70,6 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ loading: true, error: null });
           const { user } = await authService.login(credentials);
-          console.log('user :>> ', user);
           set({ user, isAuthenticated: true });
           return user;
         } catch (error: any) {
@@ -88,8 +105,22 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         try {
           set({ loading: true });
+          const uid = get().user?.id;
           await authService.logout();
           set({ user: null, isAuthenticated: false });
+          try {
+            const { removeBookPageLocalStorageKeysForUser } = await import(
+              '@/lib/book-page-local-storage'
+            );
+            removeBookPageLocalStorageKeysForUser(uid);
+            const { useBookEditorStore } = await import(
+              '@/features/books/presentation/stores/book-editor.store'
+            );
+            useBookEditorStore.persist.clearStorage();
+            useBookEditorStore.getState().reset();
+          } catch {
+            // ignore if store unavailable
+          }
         } catch (error: any) {
           set({
             error: error?.response?.data?.message || 'Logout failed'

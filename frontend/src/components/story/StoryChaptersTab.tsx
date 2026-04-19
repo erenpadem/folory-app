@@ -1,11 +1,12 @@
-import { Story } from "@/types/story"
+// components/story/StoryChaptersTab.tsx
+'use client'
+
 import { ChapterItem } from "./ChapterItem"
+import { useStoryEditorStore } from "@/stores/story.store"
 
-interface StoryChaptersTabProps {
-  story: Story
-}
+export function StoryChaptersTab() {
+  const { story } = useStoryEditorStore()
 
-export function StoryChaptersTab({ story }: StoryChaptersTabProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold">Bölümler ({story.chapters.length})</h3>

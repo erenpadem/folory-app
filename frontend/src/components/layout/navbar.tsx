@@ -1,77 +1,72 @@
 'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
-import { Menu, Sun, Moon, User, LogOut } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { Menu, User, LogOut, LayoutDashboard, Bookmark, Bell, Settings, CircleUser, LogIn, UserPlus } from 'lucide-react'
 import {
     Drawer,
     DrawerContent,
+    DrawerTitle,
     DrawerTrigger,
 } from "@/components/ui/drawer"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTrigger,
-    DialogTitle
-} from "@/components/ui/dialog"
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import Image from 'next/image'
 import ThemeChanger from './theme-switcher'
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useAuth } from '@/features/auth'
+import { useNotifications } from '@/hooks/use-notifications'
+import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'react-hot-toast'
+import { buildLoginUrl, getCurrentReturnTo } from '@/lib/auth-redirect'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from '@/lib/utils'
+import { useBookEditorStore } from '@/features/books/presentation/stores/book-editor.store'
+import {
+    BookWizardStepper,
+    BOOK_WIZARD_STEPS,
+} from '@/features/books/presentation/components/wizard/book-wizard-stepper'
+import { clearWizardWriteContextParams } from '@/features/books/presentation/utils/wizard-write-url'
+import { useScrollHideHeader } from '@/hooks/use-scroll-hide-header'
 
 const Navbar = () => {
-    const { theme, setTheme } = useTheme()
-    const { user, login, register, logout, loading } = useAuth()
+    const { user, logout, loading } = useAuth()
+    const { unreadCount } = useNotifications()
     const router = useRouter()
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [name, setName] = useState('')
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const pathname = usePathname()
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-    const toggleTheme = () => {
-        setTheme(theme === 'dark' ? 'light' : 'dark')
+    useEffect(() => {
+        setMobileMenuOpen(false)
+    }, [pathname])
+
+    const isBookWizardRoute =
+        pathname === '/dashboard/books/new' ||
+        (pathname?.startsWith('/dashboard/books/update/') ?? false)
+
+    const scrollHideNav = useScrollHideHeader(isBookWizardRoute)
+    const currentStep = useBookEditorStore((s) => s.currentStep)
+    const setCurrentStep = useBookEditorStore((s) => s.setCurrentStep)
+
+    /** Kitap sihirbazı yazım adımı: tam ekran editör, üst bar gizli */
+    const isBookWizardWriteStep = isBookWizardRoute && currentStep === 4
+    if (isBookWizardWriteStep) {
+        return null
     }
 
-    const handleLogin = async () => {
-        try {
-            await login({ email, password })
-            toast.success('Giriş başarılı')
-            setIsDialogOpen(false)
-            setEmail('')
-            setPassword('')
-        } catch (error: any) {
-            toast.error(error?.response?.data?.message || 'Giriş başarısız')
-        }
-    }
-
-    const handleRegister = async () => {
-        try {
-            await register({ name, email, password, password_confirmation: password })
-            toast.success('Kayıt başarılı, giriş yapabilirsiniz')
-            setIsDialogOpen(false)
-            setName('')
-            setEmail('')
-            setPassword('')
-        } catch (error: any) {
-            toast.error(error?.response?.data?.message || 'Kayıt başarısız')
+    const handleScroll = (sectionId: string) => {
+        if (pathname === '/') {
+            const section = document.querySelector(sectionId)
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' })
+            }
+        } else {
+            router.push(`/${sectionId}`)
         }
     }
 
@@ -80,140 +75,228 @@ const Navbar = () => {
             await logout()
             toast.success('Çıkış yapıldı')
             router.push('/')
-        } catch (error: any) {
+        } catch {
             toast.error('Çıkış sırasında bir hata oluştu')
         }
     }
 
+    const navigateToAuth = (tab: 'login' | 'register') => {
+        const rt = getCurrentReturnTo()
+        const returnTo = rt === '/' ? undefined : rt
+        router.push(
+            tab === 'register'
+                ? buildLoginUrl({ tab: 'register', returnTo })
+                : buildLoginUrl({ returnTo })
+        )
+    }
+
+    const syncWizardStepUrl = (step: number) => {
+        if (typeof window === 'undefined') return
+        const onUpdate = pathname?.startsWith('/dashboard/books/update/')
+        const onNew = pathname === '/dashboard/books/new'
+        if (!onUpdate && !onNew) return
+        const url = new URL(window.location.href)
+        url.searchParams.set('step', String(step))
+        if (step !== 4) {
+            clearWizardWriteContextParams(url)
+        }
+        router.replace(url.pathname + url.search, { scroll: false })
+    }
+
+    const handleWizardStepClick = (step: number) => {
+        if (step > currentStep) return
+        setCurrentStep(step)
+        syncWizardStepUrl(step)
+    }
+
     return (
         <>
+            {isBookWizardRoute && (
+                <div className="h-[7.25rem] md:h-[4rem] shrink-0" aria-hidden />
+            )}
+            <div
+                className={cn(
+                    isBookWizardRoute
+                        ? cn(
+                              'fixed top-0 left-0 right-0 z-50 px-8 transition-transform duration-300 ease-out',
+                              'bg-background/95 backdrop-blur-md border-b border-border/40 shadow-sm',
+                              scrollHideNav && '-translate-y-full'
+                          )
+                        : 'contents'
+                )}
+            >
+                <div
+                    className={cn(
+                        isBookWizardRoute
+                            ? 'max-w-5xl mx-auto w-full py-2 md:py-1.5'
+                            : 'contents'
+                    )}
+                >
             {/* Desktop Navbar */}
-            <div className='hidden md:flex items-center justify-between w-full'>
-                <div>
+            <div
+                className={cn(
+                    'hidden md:flex w-full items-center',
+                    isBookWizardRoute ? 'gap-2 md:gap-4' : 'justify-between'
+                )}
+            >
+                <div className="shrink-0">
                     <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
                         Folory
                     </Link>
                 </div>
-                <div className='gap-x-6 flex items-center'>
-                    <Link className='hover:opacity-80 transition-colors' href={'#how-it-works'}>Nasıl Çalışır?</Link>
-                     <Link className='hover:opacity-80 transition-colors' href={'/explore'}>Keşfet</Link>
-                    <Link className='hover:opacity-80 transition-colors' href={'#coming-soon'}>Yakında</Link>
+
+                {isBookWizardRoute && (
+                    <div className="flex-1 flex justify-center min-w-0 px-1 md:px-2">
+                        <BookWizardStepper
+                            steps={BOOK_WIZARD_STEPS}
+                            currentStep={currentStep}
+                            onStepClick={handleWizardStepClick}
+                        />
+                    </div>
+                )}
+
+                <div className={cn('gap-x-6 flex items-center', isBookWizardRoute && 'shrink-0')}>
+                    <button
+                        onClick={() => handleScroll('#how-it-works')}
+                        className='hover:opacity-80 transition-colors flex items-center gap-2'
+                    >
+                        Nasıl Çalışır?
+                    </button>
+                    <Link className='hover:opacity-80 transition-colors' href={'/explore'}>
+                        Keşfet
+                    </Link>
+                    <button
+                        onClick={() => handleScroll('#coming-soon')}
+                        className='hover:opacity-80 transition-colors'
+                    >
+                        Yakında
+                    </button>
+                    {user && (
+                        <>
+                            {user.role === 'author' && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => router.push('/dashboard')}
+                                    className="gap-2"
+                                >
+                                    <LayoutDashboard className="h-4 w-4" />
+                                    Panel
+                                </Button>
+                            )}
+                        </>
+                    )}
 
                     {user ? (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={user.avatar} alt={user.name} />
-                                        <AvatarFallback>
-                                            {user.name ? user.name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56" align="end" forceMount>
-                                <DropdownMenuItem className="flex flex-col items-start">
-                                    <div className="text-sm font-medium">{user.name}</div>
-                                    <div className="text-xs text-muted-foreground">{user.email}</div>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push('/profile')}>
-                                    <User className="mr-2 h-4 w-4" />
-                                    <span>Profil</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleLogout}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Çıkış Yap</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center gap-2">
+                            <ThemeChanger />
+                            {/* Notifications button for all users */}
+                            <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => router.push('/notifications')}
+                                className="relative"
+                            >
+                                <Bell className="h-5 w-5" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-0 right-0 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </Button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                                            <AvatarFallback className={getAvatarColor(user.name)}>
+                                                {user.name ? getInitials(user.name) : <User className="h-4 w-4" />}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-56" align="end" forceMount>
+                                    <DropdownMenuItem className="flex flex-col items-start pointer-events-none">
+                                        <div className="text-sm font-medium">{user.name}</div>
+                                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        {user.role && (
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {user.role === 'author' ? 'Yazar' : 'Okuyucu'}
+                                            </div>
+                                        )}
+                                    </DropdownMenuItem>
+                                    
+                                    {/* Dashboard for authors */}
+                                    {user.role === 'author' && (
+                                        <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                                            <span>Panel</span>
+                                        </DropdownMenuItem>
+                                    )}
+                                    
+                                    {/* Profile for all users */}
+                                    <DropdownMenuItem onClick={() => router.push('/profile')}>
+                                        <User className="mr-2 h-4 w-4" />
+                                        <span>Profil</span>
+                                    </DropdownMenuItem>
+                                    
+                                    {/* Saved and Notifications for readers only */}
+                                    {user.role !== 'author' && (
+                                        <>
+                                            <DropdownMenuItem onClick={() => router.push('/profile?tab=saved')}>
+                                                <Bookmark className="mr-2 h-4 w-4" />
+                                                <span>Kaydedilenler</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => router.push('/notifications')}>
+                                                <Bell className="mr-2 h-4 w-4" />
+                                                <span>Bildirimler</span>
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
+                                    
+                                    {/* Settings for all users */}
+                                    <DropdownMenuItem onClick={() => router.push('/settings')}>
+                                        <Settings className="mr-2 h-4 w-4" />
+                                        <span>Ayarlar</span>
+                                    </DropdownMenuItem>
+                                    
+                                    <div className="border-t my-1" />
+                                    
+                                    <DropdownMenuItem 
+                                        onClick={handleLogout}
+                                        className="text-destructive focus:text-destructive"
+                                    >
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        <span>Çıkış Yap</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     ) : (
                         <>
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button size={'sm'} variant={'secondary'}>Hemen Katıl</Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[425px] transition-all">
-                                    <Tabs defaultValue="login" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="login">Giriş Yap</TabsTrigger>
-                                            <TabsTrigger value="register">Kayıt Ol</TabsTrigger>
-                                        </TabsList>
-
-                                        <TabsContent value="login" className="mt-4">
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="email">E-posta</Label>
-                                                    <Input
-                                                        id="email"
-                                                        type="email"
-                                                        placeholder="email@example.com"
-                                                        value={email}
-                                                        onChange={(e) => setEmail(e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="password">Şifre</Label>
-                                                    <Input
-                                                        id="password"
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        value={password}
-                                                        onChange={(e) => setPassword(e.target.value)}
-                                                    />
-                                                </div>
-                                                <Button
-                                                    className="w-full mt-2"
-                                                    onClick={handleLogin}
-                                                    disabled={loading}
-                                                >
-                                                    {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-                                                </Button>
-                                            </div>
-                                        </TabsContent>
-
-                                        <TabsContent value="register" className="mt-4">
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="name">Ad Soyad</Label>
-                                                    <Input
-                                                        id="name"
-                                                        placeholder="Adınız ve soyadınız"
-                                                        value={name}
-                                                        onChange={(e) => setName(e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="new-email">E-posta</Label>
-                                                    <Input
-                                                        id="new-email"
-                                                        type="email"
-                                                        placeholder="email@example.com"
-                                                        value={email}
-                                                        onChange={(e) => setEmail(e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="new-password">Şifre</Label>
-                                                    <Input
-                                                        id="new-password"
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        value={password}
-                                                        onChange={(e) => setPassword(e.target.value)}
-                                                    />
-                                                </div>
-                                                <Button
-                                                    className="w-full mt-2"
-                                                    onClick={handleRegister}
-                                                    disabled={loading}
-                                                >
-                                                    {loading ? 'Kayıt Olunuyor...' : 'Kayıt Ol'}
-                                                </Button>
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                </DialogContent>
-                            </Dialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="rounded-full border border-border/60 text-foreground hover:bg-accent"
+                                        aria-label="Hesap menüsü"
+                                    >
+                                        <CircleUser className="h-6 w-6" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-48" align="end">
+                                    <DropdownMenuItem onSelect={() => navigateToAuth('login')}>
+                                        <LogIn className="mr-2 h-4 w-4" />
+                                        Giriş Yap
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => navigateToAuth('register')}>
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        Kayıt Ol
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <ThemeChanger />
                         </>
                     )}
@@ -221,12 +304,22 @@ const Navbar = () => {
             </div>
 
             {/* Mobile Navbar */}
-            <div className='flex md:hidden items-center justify-between w-full'>
+            <div
+                className={cn(
+                    'md:hidden',
+                    isBookWizardRoute ? 'flex flex-col gap-2 w-full' : 'flex items-center justify-between w-full'
+                )}
+            >
+                <div className="flex items-center justify-between w-full">
                 <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
                     Folory
                 </Link>
 
-                <Drawer direction="right">
+                <Drawer
+                    direction="right"
+                    open={mobileMenuOpen}
+                    onOpenChange={setMobileMenuOpen}
+                >
                     <DrawerTrigger asChild>
                         <Button variant="ghost" size="icon">
                             <Menu className="h-5 w-5" />
@@ -236,32 +329,92 @@ const Navbar = () => {
                         <div className="p-6 space-y-8">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Image src="/assets/logo.png" width={32} height={32} alt="Folory Logo" />
-                                    <span className="font-bold text-lg">Folory</span>
+                                    <Image src="/assets/logo.svg" width={32} height={32} alt="" aria-hidden priority />
+                                    <DrawerTitle className="font-bold text-lg">Folory</DrawerTitle>
                                 </div>
                                 <ThemeChanger />
                             </div>
 
                             <div className="space-y-4">
-                                <Link href={'/'} className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent">
+                                <button
+                                    onClick={() => handleScroll('#how-it-works')}
+                                    className="block w-full text-left hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                >
                                     Nasıl Çalışır?
+                                </button>
+                                <Link href={'/explore'} className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent">
+                                    Keşfet
                                 </Link>
-                                <Link href={'/'} className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent">
-                                    Blog
-                                </Link>
-                                <Link href={'/'} className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent">
+                                <button
+                                    onClick={() => handleScroll('#coming-soon')}
+                                    className="block w-full text-left hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                >
                                     Yakında
-                                </Link>
+                                </button>
                             </div>
 
                             {user ? (
                                 <div className="space-y-4">
+                                    {/* User info */}
+                                    <div className="pb-4 border-b">
+                                        <div className="text-sm font-medium">{user.name}</div>
+                                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        {user.role && (
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {user.role === 'author' ? 'Yazar' : 'Okuyucu'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Dashboard for authors */}
+                                    {user.role === 'author' && (
+                                        <Link
+                                            href="/dashboard"
+                                            className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                        >
+                                            <LayoutDashboard className="inline mr-2 h-4 w-4" />
+                                            Panel
+                                        </Link>
+                                    )}
+                                    
+                                    {/* Profile for all users */}
                                     <Link
                                         href="/profile"
                                         className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
                                     >
+                                        <User className="inline mr-2 h-4 w-4" />
                                         Profil
                                     </Link>
+                                    
+                                    {/* Saved and Notifications for readers only */}
+                                    {user.role !== 'author' && (
+                                        <>
+                                            <Link
+                                                href="/profile?tab=saved"
+                                                className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                            >
+                                                <Bookmark className="inline mr-2 h-4 w-4" />
+                                                Kaydedilenler
+                                            </Link>
+                                            <Link
+                                                href="/notifications"
+                                                className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                            >
+                                                <Bell className="inline mr-2 h-4 w-4" />
+                                                Bildirimler
+                                            </Link>
+                                        </>
+                                    )}
+                                    
+                                    {/* Settings for all users */}
+                                    <Link
+                                        href="/settings"
+                                        className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                    >
+                                        <Settings className="inline mr-2 h-4 w-4" />
+                                        Ayarlar
+                                    </Link>
+                                    
                                     <Button
                                         variant="destructive"
                                         className="w-full"
@@ -272,102 +425,43 @@ const Navbar = () => {
                                     </Button>
                                 </div>
                             ) : (
-                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button size="sm" variant="secondary" className="w-full">
-                                            Hemen Katıl
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-[425px]">
-                                        <DialogHeader>
-                                            <DialogTitle>Hemen aramıza katıl</DialogTitle>
-                                        </DialogHeader>
-
-                                        <Tabs defaultValue="login" className="w-full">
-                                            <TabsList className="grid w-full grid-cols-2">
-                                                <TabsTrigger value="login">Giriş Yap</TabsTrigger>
-                                                <TabsTrigger value="register">Kayıt Ol</TabsTrigger>
-                                            </TabsList>
-
-                                            <TabsContent value="login" className="mt-4">
-                                                <div className="space-y-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile-email">E-posta</Label>
-                                                        <Input
-                                                            id="mobile-email"
-                                                            type="email"
-                                                            placeholder="email@example.com"
-                                                            value={email}
-                                                            onChange={(e) => setEmail(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile-password">Şifre</Label>
-                                                        <Input
-                                                            id="mobile-password"
-                                                            type="password"
-                                                            placeholder="••••••••"
-                                                            value={password}
-                                                            onChange={(e) => setPassword(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <Button
-                                                        className="w-full mt-2"
-                                                        onClick={handleLogin}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-                                                    </Button>
-                                                </div>
-                                            </TabsContent>
-
-                                            <TabsContent value="register" className="mt-4">
-                                                <div className="space-y-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile-name">Ad Soyad</Label>
-                                                        <Input
-                                                            id="mobile-name"
-                                                            placeholder="Adınız ve soyadınız"
-                                                            value={name}
-                                                            onChange={(e) => setName(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile-new-email">E-posta</Label>
-                                                        <Input
-                                                            id="mobile-new-email"
-                                                            type="email"
-                                                            placeholder="email@example.com"
-                                                            value={email}
-                                                            onChange={(e) => setEmail(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile-new-password">Şifre</Label>
-                                                        <Input
-                                                            id="mobile-new-password"
-                                                            type="password"
-                                                            placeholder="••••••••"
-                                                            value={password}
-                                                            onChange={(e) => setPassword(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <Button
-                                                        className="w-full mt-2"
-                                                        onClick={handleRegister}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading ? 'Kayıt Olunuyor...' : 'Kayıt Ol'}
-                                                    </Button>
-                                                </div>
-                                            </TabsContent>
-                                        </Tabs>
-                                    </DialogContent>
-                                </Dialog>
+                                <div className="flex flex-col gap-2">
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start gap-2"
+                                        onClick={() => navigateToAuth('login')}
+                                    >
+                                        <LogIn className="h-4 w-4" />
+                                        Giriş Yap
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        className="w-full justify-start gap-2"
+                                        onClick={() => navigateToAuth('register')}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        Kayıt Ol
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </DrawerContent>
                 </Drawer>
+                </div>
+                {isBookWizardRoute && (
+                    <div className="w-full max-w-full overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="flex justify-center min-w-[min(100%,18rem)] mx-auto">
+                            <BookWizardStepper
+                                compact
+                                steps={BOOK_WIZARD_STEPS}
+                                currentStep={currentStep}
+                                onStepClick={handleWizardStepClick}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+                </div>
             </div>
         </>
     )

@@ -4,6 +4,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import axios from 'axios'
 import { 
   Form,
   FormField,
@@ -18,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { User } from '@/types/user'
+import type { User } from '@/types/auth'
 
 // Validation Schema
 const profileFormSchema = z.object({
@@ -37,7 +38,7 @@ const profileFormSchema = z.object({
     .optional(),
 })
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>
+export type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 interface ProfileEditFormProps {
   user: User
@@ -46,11 +47,17 @@ interface ProfileEditFormProps {
 }
 
 export const ProfileEditForm = ({ user, onSave, onCancel }: ProfileEditFormProps) => {
+  let base = user.username?.trim() || user.email.split('@')[0] || 'user'
+  if (base.length < 3) {
+    base = `u_${base}`
+  }
+  const defaultUsername = base.slice(0, 20)
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: user.name,
-      username: user.username,
+      username: defaultUsername,
       bio: user.bio || '',
       email: user.email
     },
@@ -64,6 +71,17 @@ export const ProfileEditForm = ({ user, onSave, onCancel }: ProfileEditFormProps
       await onSave(values)
       toast.success('Profil başarıyla güncellendi')
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data?.errors) {
+        const errs = error.response.data.errors as Record<string, string[]>
+        const keys = ['name', 'username', 'bio', 'email'] as const
+        for (const key of keys) {
+          const msg = errs[key]?.[0]
+          if (msg) {
+            form.setError(key, { message: msg })
+          }
+        }
+        return
+      }
       toast.error('Profil güncellenirken bir hata oluştu')
     }
   }
@@ -151,7 +169,7 @@ export const ProfileEditForm = ({ user, onSave, onCancel }: ProfileEditFormProps
                 />
               </FormControl>
               <FormDescription>
-                E-posta değiştirmek için hesap ayarlarını ziyaret edin
+                E-posta değiştirmek için profilinizde Ayarlar sekmesindeki &quot;E-posta değiştir&quot; bölümünü kullanın.
               </FormDescription>
             </FormItem>
           )}

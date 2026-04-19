@@ -139,3 +139,407 @@ html {
 :target {
   scroll-margin-top: 100px; /* Navbar yüksekliğine göre ayarlayın */
 }
+
+/* Drag and Drop Styles for @hello-pangea/dnd */
+[data-rbd-placeholder-context-id],
+[data-rbd-placeholder-context-id] > * {
+  background: hsl(var(--secondary) / 0.15) !important;
+  border: 2px dashed hsl(var(--primary)) !important;
+  border-radius: var(--radius) !important;
+  min-height: 80px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  opacity: 1 !important;
+}
+
+[data-rbd-placeholder-context-id] > *::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 2px;
+  background: hsl(var(--primary));
+  border-radius: 2px;
+}
+
+[data-rbd-placeholder-context-id] > *::after {
+  content: 'Bırakmak için buraya sürükleyin';
+  position: absolute;
+  top: calc(50% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--primary));
+  white-space: nowrap;
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+/* Smooth styled scrollbars (used in modals) */
+.scroll-soft {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+.scroll-soft::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll-soft::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-soft::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.4);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scroll-soft::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.6);
+}
+
+.ProseMirror p {
+  margin: 1em 0;
+  line-height: 1.75;
+}
+
+.ProseMirror h1 {
+  font-size: 2.5em;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 1em;
+  line-height: 1.2;
+  display: block;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 2em;
+  margin-bottom: 1em;
+  line-height: 1.3333333;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  line-height: 1.6;
+}
+
+.ProseMirror blockquote {
+  font-weight: 500;
+  font-style: italic;
+  color: var(--muted-foreground);
+  border-left: 0.25em solid var(--secondary);
+  padding-left: 1em;
+  margin: 1.6em 0;
+}
+/* Add typographic quotation marks around blockquote paragraphs in editor */
+.ProseMirror blockquote {
+  quotes: "“" "”" "‘" "’";
+}
+.ProseMirror blockquote p::before {
+  content: open-quote;
+  color: var(--muted-foreground);
+  margin-right: 2px;
+}
+.ProseMirror blockquote p::after {
+  content: close-quote;
+  color: var(--muted-foreground);
+  margin-left: 2px;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1.5em 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 1.25em 0;
+  padding-left: 1.625em;
+}
+
+.ProseMirror li {
+  margin: 0.5em 0;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+/* Kitap yazım editörü: paragraf aralığı okuma/yayın için daha sıkı (genel .prose p’den ayrılır) */
+.book-editor-prose p,
+.book-editor-prose .ProseMirror p {
+  margin-top: 0 !important;
+  margin-bottom: 0.32em !important;
+  line-height: 1.55 !important;
+}
+.book-editor-prose h1,
+.book-editor-prose .ProseMirror h1 {
+  margin-top: 0.75em !important;
+  margin-bottom: 0.45em !important;
+  line-height: 1.25 !important;
+}
+.book-editor-prose h2,
+.book-editor-prose .ProseMirror h2 {
+  margin-top: 1em !important;
+  margin-bottom: 0.4em !important;
+  line-height: 1.3 !important;
+}
+.book-editor-prose h3,
+.book-editor-prose .ProseMirror h3 {
+  margin-top: 0.85em !important;
+  margin-bottom: 0.35em !important;
+  line-height: 1.35 !important;
+}
+
+/* Boş / yalnızca satır sonu paragrafları — Enter ile aşırı dikey boşluk azaltılır */
+.book-editor-prose .ProseMirror p:has(> br:only-child) {
+  margin-bottom: 0.1em !important;
+  min-height: 1.15em;
+}
+
+/* Kitap okuyucu: genel .prose p (1.5em) yerine Enter/satır kırılımlarında daha sıkı */
+.book-reader-prose.prose p {
+  margin-top: 0 !important;
+  margin-bottom: 0.5em !important;
+  line-height: inherit !important;
+}
+
+.book-reader-prose.prose p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.book-reader-prose.prose p:empty {
+  margin-bottom: 0.2em !important;
+  min-height: 0;
+}
+
+.book-reader-prose.prose p:has(> br:only-child) {
+  margin-bottom: 0.3em !important;
+}
+
+.book-reader-prose.prose li > p {
+  margin-top: 0 !important;
+  margin-bottom: 0.35em !important;
+}
+
+.book-reader-prose.prose li > p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Link içi satır sonları: satır kutusu tek paragraf gibi davransın */
+.book-reader-prose.prose a {
+  line-height: inherit;
+}
+
+/*
+ * Kitap okuyucu (spread): tema html.dark / açık mod ile uyum.
+ * Projede @custom-variant dark (&:is(.light *)) olduğu için Tailwind dark: okuyucuda güvenilir değil;
+ * bu yüzden html.dark ile hedefliyoruz.
+ */
+/* Okuyucu arka planı: uygulama zemini (çerçevesiz, modern) */
+.reader-desk {
+  background: var(--background);
+}
+
+/* Çift sütun: tema metin renkleri, ayrı kağıt/kutu yok */
+.reader-page-paper {
+  --reader-ink: var(--foreground);
+  --reader-ink-muted: var(--muted-foreground);
+  --reader-link: var(--primary);
+  background-color: transparent;
+  color: var(--reader-ink);
+}
+
+.reader-page-paper-muted {
+  --reader-ink: var(--foreground);
+  --reader-ink-muted: var(--muted-foreground);
+  --reader-link: var(--primary);
+  /* İkinci sütun: çok hafif zemin, kutu hissi vermeden */
+  background-color: color-mix(in srgb, var(--muted) 22%, transparent);
+  color: var(--reader-ink);
+}
+
+.reader-page-paper .reader-page-kicker,
+.reader-page-paper-muted .reader-page-kicker {
+  color: var(--reader-ink-muted);
+}
+
+.reader-page-paper .reader-page-folio,
+.reader-page-paper-muted .reader-page-folio {
+  color: var(--reader-ink-muted);
+  opacity: 0.92;
+}
+
+/* Prose / TipTap çıktısı: gövde rengi kağıtla aynı hizada */
+.reader-page-paper .book-reader-prose.prose,
+.reader-page-paper-muted .book-reader-prose.prose {
+  color: var(--reader-ink);
+}
+
+.reader-page-paper .book-reader-prose.prose :where(h1, h2, h3, h4, h5, h6, p, li, td, th, strong),
+.reader-page-paper-muted .book-reader-prose.prose :where(h1, h2, h3, h4, h5, h6, p, li, td, th, strong) {
+  color: var(--reader-ink);
+}
+
+.reader-page-paper .book-reader-prose.prose :where(blockquote),
+.reader-page-paper-muted .book-reader-prose.prose :where(blockquote) {
+  color: var(--reader-ink-muted);
+}
+
+.reader-page-paper .book-reader-prose.prose a,
+.reader-page-paper-muted .book-reader-prose.prose a {
+  color: var(--reader-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reader-page-paper .book-reader-prose.prose a:hover,
+.reader-page-paper-muted .book-reader-prose.prose a:hover {
+  opacity: 0.9;
+}
+
+.reader-page-paper .book-reader-prose.prose :where(code, pre),
+.reader-page-paper-muted .book-reader-prose.prose :where(code, pre) {
+  color: var(--reader-ink);
+}
+
+html.dark .reader-page-paper .book-reader-prose.prose :where(code),
+html.dark .reader-page-paper-muted .book-reader-prose.prose :where(code) {
+  background-color: rgb(255 255 255 / 0.08);
+}
+
+/*
+ * Kitap okuma rotası: filtre tüm okuyucu (üst bar, alt ilerleme, oklar) için tema değişkenleri.
+ * Sayfa unmount olunca sınıf kalkar; site temasına dönülür.
+ */
+.book-reader-route.reader-tone-route-sepia {
+  --background: #f4ecd8;
+  --foreground: #3a3428;
+  --muted-foreground: #6b5f4f;
+  --primary: #5c4a78;
+  --primary-foreground: #f8f4ea;
+  --border: color-mix(in srgb, #3a3428 14%, #f4ecd8);
+  --muted: color-mix(in srgb, #3a3428 10%, #f4ecd8);
+  --card: #efe6cf;
+  --card-foreground: #3a3428;
+  --popover: #efe6cf;
+  --popover-foreground: #3a3428;
+  --accent: color-mix(in srgb, #5c4a78 25%, #f4ecd8);
+  --accent-foreground: #3a3428;
+  --input: color-mix(in srgb, #3a3428 12%, #f4ecd8);
+  --ring: #5c4a78;
+}
+
+.book-reader-route.reader-tone-route-night {
+  --background: #25222e;
+  --foreground: #ece8e0;
+  --muted-foreground: #a39a8e;
+  --primary: #9cb4ff;
+  --primary-foreground: #1a1822;
+  --border: color-mix(in srgb, #fff 12%, transparent);
+  --muted: #2f2c38;
+  --card: #2e2b38;
+  --card-foreground: #ece8e0;
+  --popover: #2e2b38;
+  --popover-foreground: #ece8e0;
+  --accent: #3d3a48;
+  --accent-foreground: #ece8e0;
+  --input: #3d3a48;
+  --ring: #9cb4ff;
+}
+
+.book-reader-route.reader-tone-route-sepia .reader-page-paper .book-reader-prose.prose :where(code),
+.book-reader-route.reader-tone-route-sepia .reader-page-paper-muted .book-reader-prose.prose :where(code) {
+  background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.book-reader-route.reader-tone-route-night .reader-page-paper .book-reader-prose.prose :where(code),
+.book-reader-route.reader-tone-route-night .reader-page-paper-muted .book-reader-prose.prose :where(code) {
+  background-color: rgb(255 255 255 / 0.1);
+}
+
+/* Mavi ışık: tam ekran katmanı (React ile fixed; pointer-events yok) */
+.book-reader-route .reader-blue-light-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.07) 0%,
+    rgba(59, 130, 246, 0.04) 50%,
+    rgba(59, 130, 246, 0.08) 100%
+  );
+}
+
+/* Preview Modal Styles */
+.prose h1 {
+  font-size: 2.5em !important;
+  font-weight: 700 !important;
+  margin-top: 0 !important;
+  margin-bottom: 1em !important;
+  line-height: 1.2 !important;
+  display: block !important;
+}
+
+.prose h2 {
+  font-size: 1.875em !important;
+  font-weight: 600 !important;
+  margin-top: 2em !important;
+  margin-bottom: 1em !important;
+  line-height: 1.3 !important;
+}
+
+.prose h3 {
+  font-size: 1.5em !important;
+  font-weight: 600 !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 0.75em !important;
+  line-height: 1.4 !important;
+}
+
+.prose p {
+  margin-bottom: 1.5em !important;
+  line-height: 1.75 !important;
+}
+
+.prose blockquote {
+  margin: 2em 0 !important;
+  padding-left: 1.5em !important;
+  border-left: 4px solid var(--secondary) !important;
+}
+/* Add typographic quotation marks around blockquote paragraphs in preview */
+.prose blockquote {
+  quotes: "“" "”" "‘" "’";
+}
+.prose blockquote p::before {
+  content: open-quote;
+  color: var(--muted-foreground);
+  margin-right: 2px;
+}
+.prose blockquote p::after {
+  content: close-quote;
+  color: var(--muted-foreground);
+  margin-left: 2px;
+}

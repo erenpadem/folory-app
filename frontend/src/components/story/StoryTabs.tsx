@@ -1,39 +1,43 @@
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { StoryAboutTab } from "./StoryAboutTab"
-import { StoryChaptersTab } from "./StoryChaptersTab"
-import { StoryCommentsTab } from "./StoryCommentsTab"
-import { Story } from "@/types/story"
+// components/story/StoryTabs.tsx
+'use client'
 
-interface StoryTabsProps {
-  activeTab: string
-  onTabChange: (value: string) => void
-  story: Story
-}
+import {
+  AppTabs,
+  AppTabsList,
+  AppTabsTrigger,
+  AppTabsContent,
+} from '@/components/ui/app-tabs'
+import { StoryAboutTab } from './StoryAboutTab'
+import { StoryChaptersTab } from './StoryChaptersTab'
+import { StoryCommentsTab } from './StoryCommentsTab'
+import { useStoryEditorStore } from '@/stores/story.store'
 
-export function StoryTabs({ activeTab, onTabChange, story }: StoryTabsProps) {
+export function StoryTabs() {
+  const { activeTab, setActiveTab, story } = useStoryEditorStore()
+
   return (
     <div className="container pb-8">
-      <Tabs value={activeTab} onValueChange={onTabChange}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="about">Hikaye</TabsTrigger>
-          <TabsTrigger value="chapters">Bölümler</TabsTrigger>
-          <TabsTrigger value="comments">Yorumlar ({story.comments.length})</TabsTrigger>
-        </TabsList>
+      <AppTabs value={activeTab} onValueChange={setActiveTab}>
+        <AppTabsList className="grid w-full grid-cols-3">
+          <AppTabsTrigger value="about">Hikaye</AppTabsTrigger>
+          <AppTabsTrigger value="chapters">Bölümler</AppTabsTrigger>
+          <AppTabsTrigger value="comments">
+            Yorumlar ({story.comments.length})
+          </AppTabsTrigger>
+        </AppTabsList>
 
-        <div className="pt-6">
-          <TabsContent value="about">
-            <StoryAboutTab story={story} />
-          </TabsContent>
+        <AppTabsContent value="about">
+          <StoryAboutTab />
+        </AppTabsContent>
 
-          <TabsContent value="chapters">
-            <StoryChaptersTab story={story} />
-          </TabsContent>
+        <AppTabsContent value="chapters">
+          <StoryChaptersTab />
+        </AppTabsContent>
 
-          <TabsContent value="comments">
-            <StoryCommentsTab story={story} />
-          </TabsContent>
-        </div>
-      </Tabs>
+        <AppTabsContent value="comments">
+          <StoryCommentsTab />
+        </AppTabsContent>
+      </AppTabs>
     </div>
   )
 }

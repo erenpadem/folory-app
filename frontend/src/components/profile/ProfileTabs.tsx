@@ -1,13 +1,21 @@
 // components/profile/ProfileTabs.tsx
 'use client'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  AppTabs,
+  AppTabsList,
+  AppTabsTrigger,
+  AppTabsContent,
+} from '@/components/ui/app-tabs'
 import { ProfileAbout } from './ProfileAbout'
-import { ProfileStories } from './ProfileStories'
+import { ProfileBooks } from './ProfileBooks'
 import { ProfileComments } from './ProfileComments'
 import { ProfileSaved } from './ProfileSaved'
+import { ProfileFavorites } from './ProfileFavorites'
+import { ProfileLikes } from './ProfileLikes'
+import { ProfileQuotes } from './ProfileQuotes'
 import { ProfileSettings } from './ProfileSettings'
-import { User } from '@/types/user'
+import { User } from '@/types/auth'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -25,7 +33,7 @@ export const ProfileTabs = ({ user, isOwnProfile }: ProfileTabsProps) => {
   // URL'den tab durumunu oku
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['about', 'stories', 'comments', 'saved', 'settings'].includes(tab)) {
+    if (tab && ['about', 'books', 'comments', 'saved', 'favorites', 'likes', 'quotes', 'settings'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -39,62 +47,95 @@ export const ProfileTabs = ({ user, isOwnProfile }: ProfileTabsProps) => {
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
-      <TabsList className="w-full grid grid-cols-4 md:grid-cols-5 h-12">
-        <TabsTrigger value="about" className="py-2">
+    <AppTabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
+      <AppTabsList className="flex max-w-full flex-nowrap gap-1 overflow-x-auto overflow-y-hidden pb-0.5 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-5 lg:grid-cols-8 min-h-12 h-auto p-1">
+        <AppTabsTrigger value="about" className="shrink-0">
           Hakkında
-        </TabsTrigger>
-        <TabsTrigger value="stories" className="py-2">
-          Hikayeler
-        </TabsTrigger>
-        <TabsTrigger value="comments" className="py-2">
+        </AppTabsTrigger>
+        <AppTabsTrigger value="books" className="shrink-0">
+          Kitaplar
+        </AppTabsTrigger>
+        <AppTabsTrigger value="comments" className="shrink-0">
           Yorumlar
-        </TabsTrigger>
-        <TabsTrigger value="saved" className="py-2">
+        </AppTabsTrigger>
+        <AppTabsTrigger value="saved" className="shrink-0">
           Kaydedilenler
-        </TabsTrigger>
+        </AppTabsTrigger>
+        <AppTabsTrigger value="favorites" className="shrink-0">
+          Favoriler
+        </AppTabsTrigger>
+        <AppTabsTrigger value="likes" className="shrink-0">
+          Beğeniler
+        </AppTabsTrigger>
+        <AppTabsTrigger value="quotes" className="shrink-0">
+          Alıntılar
+        </AppTabsTrigger>
         {isOwnProfile && (
-          <TabsTrigger value="settings" className="py-2">
+          <AppTabsTrigger value="settings" className="shrink-0">
             Ayarlar
-          </TabsTrigger>
+          </AppTabsTrigger>
         )}
-      </TabsList>
+      </AppTabsList>
 
       {/* Hakkında Sekmesi */}
-      <TabsContent value="about" className="mt-6">
+      <AppTabsContent value="about">
         <ProfileAbout user={user} isOwnProfile={isOwnProfile} />
-      </TabsContent>
+      </AppTabsContent>
 
-      {/* Hikayeler Sekmesi */}
-      <TabsContent value="stories" className="mt-6">
-        <ProfileStories 
+      {/* Kitaplar Sekmesi */}
+      <AppTabsContent value="books">
+        <ProfileBooks 
           userId={user.id} 
           isOwnProfile={isOwnProfile} 
         />
-      </TabsContent>
+      </AppTabsContent>
 
       {/* Yorumlar Sekmesi */}
-      <TabsContent value="comments" className="mt-6">
+      <AppTabsContent value="comments">
         <ProfileComments 
           userId={user.id} 
           isOwnProfile={isOwnProfile} 
         />
-      </TabsContent>
+      </AppTabsContent>
 
       {/* Kaydedilenler Sekmesi */}
-      <TabsContent value="saved" className="mt-6">
+      <AppTabsContent value="saved">
         <ProfileSaved 
           userId={user.id} 
           isOwnProfile={isOwnProfile} 
         />
-      </TabsContent>
+      </AppTabsContent>
+
+      {/* Favoriler Sekmesi */}
+      <AppTabsContent value="favorites">
+        <ProfileFavorites 
+          userId={user.id} 
+          isOwnProfile={isOwnProfile} 
+        />
+      </AppTabsContent>
+
+      {/* Beğeniler Sekmesi */}
+      <AppTabsContent value="likes">
+        <ProfileLikes 
+          userId={user.id} 
+          isOwnProfile={isOwnProfile} 
+        />
+      </AppTabsContent>
+
+      {/* Alıntılar Sekmesi */}
+      <AppTabsContent value="quotes">
+        <ProfileQuotes 
+          userId={user.id} 
+          isOwnProfile={isOwnProfile} 
+        />
+      </AppTabsContent>
 
       {/* Ayarlar Sekmesi (sadece kendi profili) */}
       {isOwnProfile && (
-        <TabsContent value="settings" className="mt-6">
+        <AppTabsContent value="settings">
           <ProfileSettings user={user} />
-        </TabsContent>
+        </AppTabsContent>
       )}
-    </Tabs>
+    </AppTabs>
   )
 }

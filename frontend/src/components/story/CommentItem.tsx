@@ -1,31 +1,52 @@
+// components/story/CommentItem.tsx
+'use client'
+
 import { useState } from "react"
 import { ChevronDown, ChevronUp, Heart, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Comment } from "@/types/story"
+import { useStoryEditorStore } from "@/stores/story.store"
 
 interface CommentItemProps {
-  comment: Comment
+  comment: {
+    id: string
+    user: string
+    avatar: string
+    text: string
+    date: string
+    likes: number
+    replies?: any[]
+    isExpanded?: boolean
+  }
   depth: number
-  replyingTo: string | null
-  onReplyToggle: (id: string | null) => void
-  replyContent: string
-  onReplyContentChange: (content: string) => void
-  onReplySubmit: (e: React.FormEvent) => void
 }
 
 export function CommentItem({
   comment,
-  depth,
-  replyingTo,
-  onReplyToggle,
-  replyContent,
-  onReplyContentChange,
-  onReplySubmit
+  depth
 }: CommentItemProps) {
   const [isExpanded, setIsExpanded] = useState(comment.isExpanded ?? true)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState('')
+  const { addReply } = useStoryEditorStore()
+
+  const handleReplySubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!replyContent.trim()) return
+    
+    addReply(comment.id, {
+      id: `reply-${Date.now()}`,
+      user: "You",
+      avatar: "/placeholder-avatar-new.jpg",
+      text: replyContent,
+      date: new Date().toLocaleDateString(),
+      likes: 0
+    })
+    setReplyingTo(null)
+    setReplyContent('')
+  }
 
   return (
     <div className="space-y-3">
@@ -60,7 +81,7 @@ export function CommentItem({
             variant="ghost"
             size="sm"
             className="gap-2"
-            onClick={() => onReplyToggle(replyingTo === comment.id ? null : comment.id)}
+            onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
           >
             <MessageSquare className="h-4 w-4" />
             Yanıtla
@@ -90,20 +111,20 @@ export function CommentItem({
         {/* Reply form */}
         {replyingTo === comment.id && (
           <form
-            onSubmit={onReplySubmit}
+            onSubmit={handleReplySubmit}
             className="pl-12 mt-2 space-y-2"
           >
             <Input
               placeholder="Yanıtınızı yazın..."
               value={replyContent}
-              onChange={(e) => onReplyContentChange(e.target.value)}
+              onChange={(e) => setReplyContent(e.target.value)}
               className="bg-background"
             />
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onReplyToggle(null)}
+                onClick={() => setReplyingTo(null)}
               >
                 İptal
               </Button>
@@ -127,11 +148,6 @@ export function CommentItem({
               key={reply.id}
               comment={reply}
               depth={depth + 1}
-              replyingTo={replyingTo}
-              onReplyToggle={onReplyToggle}
-              replyContent={replyContent}
-              onReplyContentChange={onReplyContentChange}
-              onReplySubmit={onReplySubmit}
             />
           ))}
         </div>

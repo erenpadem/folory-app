@@ -1,4 +1,6 @@
-// components/story-card.tsx
+// components/story/StoryCard.tsx
+'use client'
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,26 +16,58 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
-type Story = {
-  id: string
-  title: string
-  coverImage?: string
-  genre: string
-  chaptersCount: number
-  wordCount: number
-  isPublished: boolean
-  updatedAt: string
-}
+import { useStoryEditorStore } from '@/stores/story.store'
 
 type StoryCardProps = {
-  story: Story
+  story: {
+    id: string
+    title: string
+    coverImage?: string
+    genre: string
+    chaptersCount: number
+    wordCount: number
+    isPublished: boolean
+    updatedAt: string
+  }
   actions: Array<{ label: string; href: string }>
 }
 
 export function StoryCard({ story, actions }: StoryCardProps) {
+  const { setActiveStory } = useStoryEditorStore()
+
+  const handleStorySelect = () => {
+    // This would be more complete with actual story data fetching
+    setActiveStory({
+      id: story.id,
+      title: story.title,
+      author: "Yazar",
+      description: "Hikaye açıklaması",
+      cover: story.coverImage || '',
+      genre: story.genre,
+      status: story.isPublished ? 'published' : 'draft',
+      rating: 0,
+      likes: 0,
+      wordCount: story.wordCount,
+      lastUpdated: story.updatedAt,
+      publishedDate: story.updatedAt,
+      comments: [],
+      chapters: Array(story.chaptersCount).fill(0).map((_, i) => ({
+        id: `chapter-${i}`,
+        title: `Bölüm ${i + 1}`,
+        number: i + 1,
+        status: 'unread',
+        publishedDate: story.updatedAt,
+        wordCount: Math.floor(story.wordCount / story.chaptersCount)
+      })),
+      readingProgress: null
+    })
+  }
+
   return (
-    <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+    <div 
+      className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+      onClick={handleStorySelect}
+    >
       {/* Cover Image */}
       <div className="aspect-[3/4] relative bg-muted">
         {story.coverImage ? (
