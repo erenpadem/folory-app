@@ -1,8 +1,8 @@
-# Folory - Modern Hikaye Platformu (Monolitik Versiyon)
+# Fo-lory - Modern Hikaye Platformu (Monolitik Versiyon)
 
-![Folory Logo](/next-frontend/public/assets/logo.png)
+![Fo-lory Logo](/next-frontend/public/assets/logo.png)
 
-**Folory**, yazarlar ve okuyucular için tasarlanmış modern bir hikaye paylaşım platformudur. Bu monolitik versiyon, Next.js (frontend) ve Laravel (backend) tek bir repo içinde birleştirilmiştir.
+**Fo-lory**, yazarlar ve okuyucular için tasarlanmış modern bir hikaye paylaşım platformudur.
 
 ## Proje Linki
 [https://github.com/erenpadem/folory-app](https://github.com/erenpadem/folory-app)
@@ -99,7 +99,7 @@ npm run dev
 
 ```env
 # Laravel
-APP_NAME=Folory
+APP_NAME=Fo-lory
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
@@ -114,7 +114,7 @@ DB_PASSWORD=secret
 
 # Next.js
 NEXT_PUBLIC_API_URL=http://localhost:8081
-NEXT_PUBLIC_SITE_NAME=Folory
+NEXT_PUBLIC_SITE_NAME=Fo-lory
 ```
 
 ## Geliştirme
@@ -154,4 +154,4 @@ Email: erenpadem@gmail.com
 
 ---
 
-**Folory** - Hayal gücünüzün sınırlarını keşfedin. ✨
+**Fo-lory** - Hayal gücünüzün sınırlarını keşfedin. ✨

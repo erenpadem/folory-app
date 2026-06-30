@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import { BookOpen } from "lucide-react";
-import { useBookEditorStore } from "@/features/books/presentation/stores/book-editor.store";
+import { BRAND_NAME } from "@/lib/brand"
 
  function Footer() {
     const pathname = usePathname();
@@ -24,7 +24,7 @@ import { useBookEditorStore } from "@/features/books/presentation/stores/book-ed
             <div className="col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <BookOpen className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold">Folory</span>
+                <span className="text-xl font-bold">{BRAND_NAME}</span>
               </div>
               <p className="text-muted-foreground text-sm">
                 Yazarlar ve okuyucular için modern hikaye platformu. 
@@ -78,7 +78,7 @@ import { useBookEditorStore } from "@/features/books/presentation/stores/book-ed
           {/* Bottom Section */}
           <div className="pt-6 border-t border-muted flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Folory. Tüm hakları saklıdır.
+              © {new Date().getFullYear()} {BRAND_NAME}. Tüm hakları saklıdır.
             </p>
             
             <div className="flex gap-4 text-sm text-muted-foreground">

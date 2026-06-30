@@ -3,12 +3,12 @@ import type { Metadata } from "next"
 export const metadata: Metadata = {
   title: "Hakkımızda",
   description:
-    "Folory kimdir? Yazarlar ve okurlar için dijital okuma ve yazarlık platformu hakkında bilgi.",
+    "Fo-lory kimdir? Yazarlar ve okurlar için dijital okuma ve yazarlık platformu hakkında bilgi.",
   alternates: { canonical: "/about" },
   openGraph: {
-    title: "Hakkımızda | Folory",
+    title: "Hakkımızda | Fo-lory",
     description:
-      "Folory, yazarlar ve okurlar için modern bir kitap ve hikaye platformudur.",
+      "Fo-lory, yazarlar ve okurlar için modern bir kitap ve hikaye platformudur.",
     url: "/about",
   },
 }

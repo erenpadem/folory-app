@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
         $author = User::create([
             'name' => 'Eren Padem',
             'username' => 'erenpadem',
-            'email' => 'erenpadem@folory.com',
+            'email' => 'erenpadem@fo-lory.com',
             'password' => Hash::make('erensunucu'),
             'role' => 'author',
             'is_verified' => true,

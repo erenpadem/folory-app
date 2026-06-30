@@ -3,13 +3,13 @@ import { test, expect } from '@playwright/test';
 test.describe('Smoke (UI shell)', () => {
   test('landing page loads', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/Folory|Next/i);
+    await expect(page).toHaveTitle(/Fo-lory|Next/i);
   });
 
-  test('login page shows Folory and tabs', async ({ page }) => {
+  test('login page shows Fo-lory and tabs', async ({ page }) => {
     await page.goto('/auth/login');
     await expect(
-      page.locator('[data-slot="card-title"]').filter({ hasText: /^Folory$/ })
+      page.locator('[data-slot="card-title"]').filter({ hasText: /^Fo-lory$/ })
     ).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Giriş Yap' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Kayıt Ol' })).toBeVisible();

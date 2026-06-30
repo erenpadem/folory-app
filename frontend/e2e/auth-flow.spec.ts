@@ -32,8 +32,8 @@ test.describe('Auth E2E (UI + API)', () => {
     expect(reg.ok(), await reg.text()).toBeTruthy();
 
     await page.goto('/auth/login');
-    await page.getByLabel('E-posta').fill(email);
-    await page.getByLabel('Şifre', { exact: true }).fill(password);
+    await page.locator('input[name="email"]').fill(email);
+    await page.locator('input[name="password"]').fill(password);
     await page.getByRole('button', { name: 'Giriş Yap' }).click();
 
     await page.waitForURL((url) => !url.pathname.includes('/auth/login'), {

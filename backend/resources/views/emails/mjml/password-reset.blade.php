@@ -27,7 +27,7 @@
     <mj-section padding="8px 16px 32px">
       <mj-column>
         <mj-text font-size="13px" color="#94a3b8">Bu isteği siz yapmadıysanız bu e-postayı yok sayın.</mj-text>
-        <mj-button background-color="{{ $brandPrimary }}" href="{{ $frontendUrl }}/auth/login" border-radius="8px" inner-padding="12px 24px" font-size="14px">Folory’a git</mj-button>
+        <mj-button background-color="{{ $brandPrimary }}" href="{{ $frontendUrl }}/auth/login" border-radius="8px" inner-padding="12px 24px" font-size="14px">{{ $appName }}’a git</mj-button>
       </mj-column>
     </mj-section>
     <mj-section padding="0 16px 32px">

@@ -16,7 +16,7 @@ export default function AboutPage() {
             <div>
               <h2 className="text-2xl font-semibold mb-3">Biz Kimiz?</h2>
               <p className="text-muted-foreground">
-                Folory, yazarlar ve okurlar için modern bir hikaye platformudur. 
+                Fo-lory, yazarlar ve okurlar için modern bir hikaye platformudur. 
                 2025 yılında kurulan platformumuz, yaratıcılığı desteklemek ve 
                 edebiyat severleri bir araya getirmek amacıyla yola çıktı.
               </p>

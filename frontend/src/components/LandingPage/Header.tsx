@@ -33,7 +33,7 @@ export default function Header() {
                 <div>
                     <h3 className="text-md">
                         <span className="font-bold">Hikayeni paylaş</span> <span className="text-secondary font-bold">Okuyucudan destek al </span>
-                        ve <span className="font-bold">Folory</span> ile kazanç sağlamaya başla.
+                        ve <span className="font-bold">Fo-lory</span> ile kazanç sağlamaya başla.
                     </h3>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-x-3">

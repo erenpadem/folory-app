@@ -16,7 +16,7 @@ import { useAuth } from '@/features/auth'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { buildLoginUrl, getCurrentReturnTo } from '@/lib/auth-redirect'
+import { BRAND_NAME } from '@/lib/brand'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import {
@@ -141,7 +141,7 @@ const Navbar = () => {
             >
                 <div className="shrink-0">
                     <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
-                        Folory
+                        {BRAND_NAME}
                     </Link>
                 </div>
 
@@ -312,7 +312,7 @@ const Navbar = () => {
             >
                 <div className="flex items-center justify-between w-full">
                 <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
-                    Folory
+                    {BRAND_NAME}
                 </Link>
 
                 <Drawer
@@ -330,7 +330,7 @@ const Navbar = () => {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Image src="/assets/logo.svg" width={32} height={32} alt="" aria-hidden priority />
-                                    <DrawerTitle className="font-bold text-lg">Folory</DrawerTitle>
+                                    <DrawerTitle className="font-bold text-lg">{BRAND_NAME}</DrawerTitle>
                                 </div>
                                 <ThemeChanger />
                             </div>

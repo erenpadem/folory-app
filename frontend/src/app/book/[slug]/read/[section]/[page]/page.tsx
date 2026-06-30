@@ -24,6 +24,7 @@ import {
   ReadingSettings,
   type ScreenFilter,
 } from '@/components/reading/ReadingSettings'
+import { ReaderPageTurnLoader } from '@/components/reading/ReaderPageTurnLoader'
 import {
   ReaderSinglePage,
   type ReaderPageSlot,
@@ -58,6 +59,10 @@ function readerShowBlueLightOverlay(filter: ScreenFilter): boolean {
 }
 
 const READER_IMMERSIVE_PREFIX = 'folory.reader.immersive.'
+const READER_TRANSITION_PREFIX = 'folory.reader.transitioning.'
+
+const readerNavButtonClass =
+  'fixed z-[112] h-11 w-11 rounded-full border-2 border-orange-500 bg-background/95 text-foreground shadow-md shadow-orange-500/15 backdrop-blur-sm transition-colors hover:bg-orange-50 hover:border-orange-600 disabled:border-orange-500/35 disabled:opacity-40 sm:h-12 sm:w-12 dark:hover:bg-orange-950/40'
 
 export default function BookReader() {
   const { slug, section: sectionParam, page: pageParam } = useParams()
@@ -95,14 +100,9 @@ export default function BookReader() {
       setImmersive(false)
     }
   }, [immersiveStorageKey, slugStr])
-  const [currentPage, setCurrentPage] = useState<PageEntity | null>(null)
-  const [currentSection, setCurrentSection] = useState<SectionEntity | null>(null)
-  const [book, setBook] = useState<BookEntity | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [pageBookmarked, setPageBookmarked] = useState(false)
-
-  const [error, setError] = useState<string | null>(null)
+  const [isPageTransitioning, setIsPageTransitioning] = useState(false)
 
   const { data: bookData, isLoading: isQueryLoading } = useQuery({
     queryKey: ['book', slug],
@@ -113,51 +113,80 @@ export default function BookReader() {
     enabled: !!slug,
   })
 
-  useEffect(() => {
-    if (bookData?.data) {
-      const bookDataItem = bookData.data
-      const bookEntity = BookEntity.fromPrimitives(bookDataItem)
-      setBook(bookEntity)
-
-      if (bookEntity.id && slug) {
-        void recordBookViewOnce(
-          bookEntity.id,
-          String(slug),
-          queryClient,
-          ['book', slug]
-        )
+  const { book, currentSection, currentPage, error } = useMemo(() => {
+    if (!bookData?.data) {
+      return {
+        book: null as BookEntity | null,
+        currentSection: null as SectionEntity | null,
+        currentPage: null as PageEntity | null,
+        error: null as string | null,
       }
+    }
 
-      const sectionId = Number(sectionParam)
-      const pageId = Number(pageParam)
-      const section = bookEntity.sections.find((s) => s.id === sectionId)
-      const isOwner =
-        user != null && Number(user.id) === Number(bookEntity.authorId)
+    const bookEntity = BookEntity.fromPrimitives(bookData.data)
+    const sectionId = Number(sectionParam)
+    const pageId = Number(pageParam)
+    const section = bookEntity.sections.find((s) => s.id === sectionId)
+    const isOwner =
+      user != null && Number(user.id) === Number(bookEntity.authorId)
 
-      if (section && !section.isVisible && !isOwner) {
-        setError('Bu bölüm okuyuculara gösterilmiyor.')
-        setIsLoading(false)
-        return
+    if (section && !section.isVisible && !isOwner) {
+      return {
+        book: bookEntity,
+        currentSection: null,
+        currentPage: null,
+        error: 'Bu bölüm okuyuculara gösterilmiyor.',
       }
+    }
 
-      if (section) {
-        setCurrentSection(section)
-        const page = section.pages.find((p) => p.id === pageId)
-        if (page) {
-          setCurrentPage(page)
-          setError(null)
-          setIsLoading(false)
-          return
+    if (section) {
+      const page = section.pages.find((p) => p.id === pageId)
+      if (page) {
+        return {
+          book: bookEntity,
+          currentSection: section,
+          currentPage: page,
+          error: null,
         }
       }
-
-      setError('İstenilen sayfa veya bölüm bulunamadı.')
-      setIsLoading(false)
-    } else if (!isQueryLoading && !bookData) {
-      setError('Kitap yüklenemedi.')
-      setIsLoading(false)
     }
-  }, [bookData, sectionParam, pageParam, isQueryLoading, user, queryClient, slug])
+
+    return {
+      book: bookEntity,
+      currentSection: null,
+      currentPage: null,
+      error: 'İstenilen sayfa veya bölüm bulunamadı.',
+    }
+  }, [bookData, sectionParam, pageParam, user])
+
+  const loadError =
+    error ?? (!isQueryLoading && !bookData ? 'Kitap yüklenemedi.' : null)
+  const isInitialLoading = isQueryLoading && !bookData
+
+  useEffect(() => {
+    if (!book?.id || !slug) return
+    void recordBookViewOnce(book.id, String(slug), queryClient, ['book', slug])
+  }, [book?.id, slug, queryClient])
+
+  useLayoutEffect(() => {
+    if (!slugStr) return
+    try {
+      const wasTransitioning =
+        sessionStorage.getItem(`${READER_TRANSITION_PREFIX}${slugStr}`) === '1'
+      if (wasTransitioning) {
+        setIsPageTransitioning(true)
+        sessionStorage.removeItem(`${READER_TRANSITION_PREFIX}${slugStr}`)
+      }
+    } catch {
+      setIsPageTransitioning(false)
+    }
+  }, [slugStr, sectionParam, pageParam])
+
+  useEffect(() => {
+    if (!isPageTransitioning) return
+    const timer = window.setTimeout(() => setIsPageTransitioning(false), 420)
+    return () => window.clearTimeout(timer)
+  }, [isPageTransitioning, sectionParam, pageParam])
 
   const requireAuth = () => {
     if (user) return true
@@ -235,6 +264,13 @@ export default function BookReader() {
   }, [book, currentSection, currentPage, slug, user, readableSections])
 
   const goToPage = (sectionId: number, pageId: number) => {
+    if (typeof window !== 'undefined' && slugStr) {
+      try {
+        sessionStorage.setItem(`${READER_TRANSITION_PREFIX}${slugStr}`, '1')
+      } catch {
+        /* private mode vb. */
+      }
+    }
     router.push(`/book/${slug}/read/${sectionId}/${pageId}`)
   }
 
@@ -341,11 +377,11 @@ export default function BookReader() {
     }
   }, [immersive])
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="flex h-screen items-center justify-center px-4">
         <div className="space-y-4 text-center">
-          <p className="text-lg font-medium text-destructive">{error}</p>
+          <p className="text-lg font-medium text-destructive">{loadError}</p>
           <Button variant="outline" onClick={() => router.push(`/book/${slug}`)}>
             Kitap Sayfasına Dön
           </Button>
@@ -354,15 +390,8 @@ export default function BookReader() {
     )
   }
 
-  if (isLoading || !currentPage || !currentSection || !book) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="space-y-4 text-center">
-          <div className="mx-auto h-12 w-12 animate-pulse rounded-full bg-muted" />
-          <p>Sayfa yükleniyor...</p>
-        </div>
-      </div>
-    )
+  if (isInitialLoading || !currentPage || !currentSection || !book) {
+    return <ReaderPageTurnLoader className="h-screen" />
   }
 
   const totalPages = getTotalPages()
@@ -530,13 +559,22 @@ export default function BookReader() {
           immersive && 'pt-12'
         )}
       >
-        <div className="mx-auto flex min-h-0 w-full max-w-full flex-1 justify-center px-3 sm:px-5">
+        <div className="relative mx-auto flex min-h-0 w-full max-w-full flex-1 justify-center px-3 sm:px-5">
           <ReaderSinglePage
+            key={`${currentSection.id}-${currentPage.id}`}
             slot={currentSlot}
             fontSize={fontSize}
             lineHeight={lineHeight}
             className={immersive ? 'max-w-[min(42rem,92vw)]' : undefined}
           />
+          {isPageTransitioning && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-background/55 backdrop-blur-[1px]"
+              aria-hidden
+            >
+              <ReaderPageTurnLoader />
+            </div>
+          )}
         </div>
       </main>
 
@@ -545,28 +583,28 @@ export default function BookReader() {
         variant="outline"
         size="icon"
         className={cn(
-          'fixed z-[112] h-11 w-11 rounded-full border-border bg-background/90 shadow-md backdrop-blur-sm sm:h-12 sm:w-12',
+          readerNavButtonClass,
           'left-[max(0.5rem,env(safe-area-inset-left))] top-1/2 -translate-y-1/2 sm:left-3 md:left-4'
         )}
         onClick={prevPage}
         disabled={!canGoPrevReader}
         aria-label="Önceki sayfa"
       >
-        <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+        <ChevronLeft className="h-5 w-5 text-orange-600 sm:h-6 sm:w-6 dark:text-orange-400" />
       </Button>
       <Button
         type="button"
         variant="outline"
         size="icon"
         className={cn(
-          'fixed z-[112] h-11 w-11 rounded-full border-border bg-background/90 shadow-md backdrop-blur-sm sm:h-12 sm:w-12',
+          readerNavButtonClass,
           'right-[max(0.5rem,env(safe-area-inset-right))] top-1/2 -translate-y-1/2 sm:right-3 md:right-4'
         )}
         onClick={nextPage}
         disabled={!canGoNextReader}
         aria-label="Sonraki sayfa"
       >
-        <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+        <ChevronRight className="h-5 w-5 text-orange-600 sm:h-6 sm:w-6 dark:text-orange-400" />
       </Button>
 
       <footer

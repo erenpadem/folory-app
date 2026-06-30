@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Folory sekme düzeni — üst şerit (segmented) + içerik aralığı.
+ * Fo-lory sekme düzeni — üst şerit (segmented) + içerik aralığı.
  * Yeni sekme kullanırken: AppTabs → AppTabsList → AppTabsTrigger, içerik AppTabsContent + isteğe SurfacePanel.
  */
 

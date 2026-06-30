@@ -14,7 +14,7 @@ export default function CookiesPage() {
               <h2 className="text-2xl font-semibold mb-3">Çerez Nedir?</h2>
               <p>
                 Çerezler, web sitelerinin kullanıcı deneyimini iyileştirmek için 
-                cihazınıza kaydedilen küçük metin dosyalarıdır. Folory'de aşağıdaki 
+                cihazınıza kaydedilen küçük metin dosyalarıdır. Fo-lory'de aşağıdaki 
                 türde çerezler kullanılmaktadır:
               </p>
               <ul className="list-disc pl-5 mt-2 space-y-2">

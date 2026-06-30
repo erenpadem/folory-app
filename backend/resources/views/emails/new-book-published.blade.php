@@ -103,7 +103,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Folory</h1>
+            <h1>{{ config('folory.name') }}</h1>
         </div>
         
         <div class="content">
@@ -136,7 +136,7 @@
         </div>
         
         <div class="footer">
-            <p>Bu e-posta Folory tarafından gönderilmiştir.</p>
+            <p>Bu e-posta {{ config('folory.name') }} tarafından gönderilmiştir.</p>
             <p>Bildirimleri yönetmek için <a href="{{ config('app.url') }}/settings" style="color: #667eea;">ayarlar</a> sayfasını ziyaret edin.</p>
         </div>
     </div>

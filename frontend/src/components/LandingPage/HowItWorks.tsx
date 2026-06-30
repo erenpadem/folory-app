@@ -29,7 +29,7 @@ export function HowItWorks() {
         <div className="container">
           <h2 className="text-4xl font-bold mb-4 text-center">Nasıl Çalışır?</h2>
           <p className="text-xl text-muted-foreground mb-12 text-center">
-            Folory'yi kullanmak çok kolay
+            Fo-lory'yi kullanmak çok kolay
           </p>
           
           <div className="grid md:grid-cols-4 gap-6">

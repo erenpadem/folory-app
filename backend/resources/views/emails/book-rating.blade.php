@@ -92,7 +92,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Folory</h1>
+            <h1>{{ config('folory.name') }}</h1>
         </div>
         <div class="content">
             <p>Merhaba,</p>
@@ -116,7 +116,7 @@
             <a href="{{ $bookUrl }}" class="button">Kitabı Görüntüle</a>
         </div>
         <div class="footer">
-            <p>&copy; {{ date('Y') }} Folory. Tüm hakları saklıdır.</p>
+            <p>&copy; {{ date('Y') }} {{ config('folory.name') }}. Tüm hakları saklıdır.</p>
         </div>
     </div>
 </body>

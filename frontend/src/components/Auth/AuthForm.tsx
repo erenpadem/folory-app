@@ -124,11 +124,17 @@ export function AuthForm({
              name === 'password_confirmation' ? 'Şifre Tekrar' :
              'Doğrulama Kodu'}
           </FormLabel>
-          <FormControl>
-            {name === 'code' ? (
+          {name === 'code' ? (
+            <FormControl>
               <AuthVerify {...field} disabled={loading} />
-            ) : name === 'password' || name === 'password_confirmation' ? (
-              <div className="relative">
+            </FormControl>
+          ) : name === 'password' || name === 'password_confirmation' ? (
+            // Keep the relative wrapper OUTSIDE FormControl so the FormControl's
+            // generated id/aria attributes land on the <input> itself (not the
+            // wrapper div). This keeps the input correctly associated with its
+            // FormLabel for accessibility and label-based queries.
+            <div className="relative">
+              <FormControl>
                 <Input
                   type={passwordVisible[name] ? 'text' : 'password'}
                   placeholder="••••••••"
@@ -137,27 +143,29 @@ export function AuthForm({
                   disabled={loading}
                   {...props}
                 />
-                <button
-                  type="button"
-                  onClick={() => togglePasswordField(name)}
-                  disabled={loading}
-                  className={cn(
-                    'absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors',
-                    'hover:bg-muted hover:text-foreground',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    'disabled:pointer-events-none disabled:opacity-50'
-                  )}
-                  aria-label={passwordVisible[name] ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                  aria-pressed={passwordVisible[name]}
-                >
-                  {passwordVisible[name] ? (
-                    <EyeOff className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden />
-                  )}
-                </button>
-              </div>
-            ) : (
+              </FormControl>
+              <button
+                type="button"
+                onClick={() => togglePasswordField(name)}
+                disabled={loading}
+                className={cn(
+                  'absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors',
+                  'hover:bg-muted hover:text-foreground',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                  'disabled:pointer-events-none disabled:opacity-50'
+                )}
+                aria-label={passwordVisible[name] ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                aria-pressed={passwordVisible[name]}
+              >
+                {passwordVisible[name] ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            </div>
+          ) : (
+            <FormControl>
               <Input
                 type="text"
                 placeholder={
@@ -168,8 +176,8 @@ export function AuthForm({
                 disabled={loading}
                 {...props}
               />
-            )}
-          </FormControl>
+            </FormControl>
+          )}
           <FormMessage />
         </FormItem>
       )}

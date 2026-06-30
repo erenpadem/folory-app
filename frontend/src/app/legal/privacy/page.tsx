@@ -13,7 +13,7 @@ export default function PrivacyPage() {
             <div>
               <h2 className="text-2xl font-semibold mb-3">Veri Toplama</h2>
               <p>
-                Folory olarak, kullanıcılarımızın gizliliğine önem veriyoruz. 
+                Fo-lory olarak, kullanıcılarımızın gizliliğine önem veriyoruz. 
                 Platformumuzda sadece hizmetlerimizi sunabilmek için gerekli olan 
                 asgari düzeyde kişisel veri topluyoruz. Topladığımız veriler:
               </p>

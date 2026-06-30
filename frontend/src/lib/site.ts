@@ -1,6 +1,6 @@
 /**
  * Canonical site URL for metadata, sitemap, and JSON-LD.
- * Set NEXT_PUBLIC_SITE_URL in production (e.g. https://folory.com).
+ * Set NEXT_PUBLIC_SITE_URL in production (e.g. https://fo-lory.com).
  */
 export function getSiteUrl(): URL {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim()

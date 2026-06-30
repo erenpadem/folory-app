@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/features/auth'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 
 export default function LoginPage() {
   const { 
@@ -73,7 +74,7 @@ export default function LoginPage() {
       <MeshBackground />
       <Card className="w-full max-w-md mx-4 z-10">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Folory</CardTitle>
+          <CardTitle className="text-2xl text-center">{BRAND_NAME}</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={authTab} key={authTab} className="w-full">

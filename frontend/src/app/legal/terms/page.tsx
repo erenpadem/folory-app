@@ -12,7 +12,7 @@ export default function TermsPage() {
             <div>
               <h2 className="text-2xl font-semibold mb-3">Genel Kurallar</h2>
               <p>
-                Folory platformunu kullanarak aşağıdaki şartları kabul etmiş sayılırsınız:
+                Fo-lory platformunu kullanarak aşağıdaki şartları kabul etmiş sayılırsınız:
               </p>
               <ul className="list-disc pl-5 mt-2 space-y-2">
                 <li>Platformu yasa dışı amaçlarla kullanamazsınız</li>
@@ -43,7 +43,7 @@ export default function TermsPage() {
             <div>
               <h2 className="text-2xl font-semibold mb-3">Haklar ve İzinler</h2>
               <p>
-                Folory olarak bizim haklarımız:
+                Fo-lory olarak bizim haklarımız:
               </p>
               <ul className="list-disc pl-5 mt-2 space-y-2">
                 <li>Şartlara uyulmadığı durumda hesapları askıya alma hakkı</li>

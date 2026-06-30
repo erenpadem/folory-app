@@ -4,6 +4,7 @@ import { getUserByUsername } from "@/services/user.service"
 import { ProfileView } from "@/components/profile/ProfileView"
 import { notFound } from "next/navigation"
 import { getAbsoluteMediaUrl, getSiteUrl } from "@/lib/site"
+import { BRAND_NAME } from "@/lib/brand"
 
 const getCachedUserByUsername = cache(getUserByUsername)
 
@@ -24,7 +25,7 @@ export async function generateMetadata({
   const path = `/profile/${encodeURIComponent(username)}`
   const desc =
     user.bio?.trim() ||
-    `${user.name} — Folory’da yazar ve okur profili.`
+    `${user.name} — ${BRAND_NAME}’da yazar ve okur profili.`
   const ogImage = getAbsoluteMediaUrl(user.avatar, apiBase)
   const title = `${user.name} (@${user.username ?? username})`
 
@@ -38,7 +39,7 @@ export async function generateMetadata({
       title,
       description: desc,
       locale: "tr_TR",
-      siteName: "Folory",
+      siteName: BRAND_NAME,
       ...(ogImage
         ? {
             images: [

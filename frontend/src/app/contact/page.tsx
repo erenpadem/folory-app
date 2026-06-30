@@ -16,7 +16,7 @@ export default function ContactPage() {
               <Mail className="h-6 w-6 text-primary mt-1" />
               <div>
                 <h2 className="text-xl font-semibold mb-2">E-posta</h2>
-                <p className="text-muted-foreground">destek@folory.com</p>
+                <p className="text-muted-foreground">destek@fo-lory.com</p>
               </div>
             </div>
 

@@ -1,4 +1,5 @@
 import { getSiteUrl } from "@/lib/site"
+import { BRAND_NAME } from "@/lib/brand"
 
 export function JsonLdSiteAndOrganization() {
   const site = getSiteUrl().origin
@@ -7,7 +8,7 @@ export function JsonLdSiteAndOrganization() {
       "@context": "https://schema.org",
       "@type": "Organization",
       "@id": `${site}/#organization`,
-      name: "Folory",
+      name: BRAND_NAME,
       url: site,
       logo: {
         "@type": "ImageObject",
@@ -19,9 +20,9 @@ export function JsonLdSiteAndOrganization() {
       "@type": "WebSite",
       "@id": `${site}/#website`,
       url: site,
-      name: "Folory",
+      name: BRAND_NAME,
       description:
-        "Folory ile kitap okuyun, yazın ve toplulukla paylaşın. Dijital okuma ve yaratıcı yazarlık platformu.",
+        `${BRAND_NAME} ile kitap okuyun, yazın ve toplulukla paylaşın. Dijital okuma ve yaratıcı yazarlık platformu.`,
       inLanguage: "tr-TR",
       publisher: { "@id": `${site}/#organization` },
       potentialAction: {

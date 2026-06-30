@@ -7,6 +7,7 @@ import Footer from "@/components/layout/footer"
 import { Providers } from "./providers"
 import { JsonLdSiteAndOrganization } from "@/components/seo/json-ld"
 import { getSiteUrl } from "@/lib/site"
+import { BRAND_NAME } from "@/lib/brand"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,14 +25,16 @@ const siteOrigin = site.origin
 export const metadata: Metadata = {
   metadataBase: site,
   title: {
-    default: "Folory — Kitap okuma ve yazma platformu",
-    template: "%s | Folory",
+    default: `${BRAND_NAME} — Kitap okuma ve yazma platformu`,
+    template: `%s | ${BRAND_NAME}`,
   },
   description:
-    "Folory ile kitaplarınızı okuyun, yazın ve paylaşın. Keşfet, okuma deneyimi ve topluluk — dijital okuma ve yaratıcı yazarlık.",
-  applicationName: "Folory",
+    `${BRAND_NAME} ile kitaplarınızı okuyun, yazın ve paylaşın. Keşfet, okuma deneyimi ve topluluk — dijital okuma ve yaratıcı yazarlık.`,
+  applicationName: BRAND_NAME,
   keywords: [
-    "Folory",
+    BRAND_NAME,
+    "Fo-lory",
+    "fo-lory",
     "kitap okuma",
     "online kitap",
     "dijital kitap",
@@ -41,9 +44,9 @@ export const metadata: Metadata = {
     "Türkçe kitap",
     "okuma uygulaması",
   ],
-  authors: [{ name: "Folory", url: siteOrigin }],
-  creator: "Folory",
-  publisher: "Folory",
+  authors: [{ name: BRAND_NAME, url: siteOrigin }],
+  creator: BRAND_NAME,
+  publisher: BRAND_NAME,
   formatDetection: {
     email: false,
     address: false,
@@ -53,24 +56,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "tr_TR",
     url: siteOrigin,
-    siteName: "Folory",
-    title: "Folory — Kitap okuma ve yazma platformu",
+    siteName: BRAND_NAME,
+    title: `${BRAND_NAME} — Kitap okuma ve yazma platformu`,
     description:
-      "Folory ile kitaplarınızı okuyun, yazın ve paylaşın. Keşfet ve toplulukla dijital okuma deneyimi.",
+      `${BRAND_NAME} ile kitaplarınızı okuyun, yazın ve paylaşın. Keşfet ve toplulukla dijital okuma deneyimi.`,
     images: [
       {
         url: "/icon.svg",
         width: 512,
         height: 512,
-        alt: "Folory",
+        alt: BRAND_NAME,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Folory — Kitap okuma ve yazma platformu",
+    title: `${BRAND_NAME} — Kitap okuma ve yazma platformu`,
     description:
-      "Folory ile kitaplarınızı okuyun, yazın ve paylaşın.",
+      `${BRAND_NAME} ile kitaplarınızı okuyun, yazın ve paylaşın.`,
     images: ["/icon.svg"],
   },
   robots: {

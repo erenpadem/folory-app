@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { JsonLdBook } from "@/components/seo/json-ld"
 import { getBookMetaForSeo } from "@/lib/server/book-meta"
 import { getAbsoluteMediaUrl, getSiteUrl } from "@/lib/site"
+import { BRAND_NAME } from "@/lib/brand"
 
 export async function generateMetadata({
   params,
@@ -24,7 +25,7 @@ export async function generateMetadata({
   const isIndexable = Boolean(book.is_published) && !book.is_draft
   const desc =
     book.short_description?.trim() ||
-    `${book.title} — Folory’da okuyun.`
+    `${book.title} — ${BRAND_NAME}’da okuyun.`
   const cover = getAbsoluteMediaUrl(book.cover, apiBase)
   const path = `/book/${slug}`
   const url = new URL(path, site).toString()
@@ -43,10 +44,10 @@ export async function generateMetadata({
       title: book.title,
       description: desc,
       locale: "tr_TR",
-      siteName: "Folory",
+      siteName: BRAND_NAME,
       images: cover
         ? [{ url: cover, width: 1200, height: 630, alt: book.title }]
-        : [{ url: defaultOg, width: 512, height: 512, alt: "Folory" }],
+        : [{ url: defaultOg, width: 512, height: 512, alt: BRAND_NAME }],
     },
     twitter: {
       card: cover ? "summary_large_image" : "summary",

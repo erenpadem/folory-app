@@ -1,0 +1,180 @@
+# Fo-lory production — blue-green deployment
+# Images are built in GitHub Actions (GHCR); the server only pulls and runs them.
+
+name: folory
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend-env: &backend-env
+  env_file:
+    - .env
+  environment:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    DB_HOST: postgres
+    REDIS_HOST: redis
+    RUN_MIGRATIONS: "false"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - folory
+  restart: unless-stopped
+  logging: *default-logging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: folory-postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-folory}
+      POSTGRES_USER: ${DB_USERNAME:-folory}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - folory
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    container_name: folory-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - folory
+    restart: unless-stopped
+    logging: *default-logging
+
+  edge:
+    image: nginx:1.27-alpine
+    container_name: folory-edge
+    ports:
+      # Sadece localhost — mentora/docker vb. ile çakışmaz (host'ta 8082)
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8082}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/upstreams:/etc/nginx/upstreams:ro
+    networks:
+      - folory
+    restart: unless-stopped
+    logging: *default-logging
+
+  api-blue:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${BLUE_TAG:-latest}
+    container_name: folory-api-blue
+    profiles:
+      - blue
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+
+  api-green:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${GREEN_TAG:-latest}
+    container_name: folory-api-green
+    profiles:
+      - green
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+
+  frontend-blue:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/frontend:${BLUE_TAG:-latest}
+    container_name: folory-frontend-blue
+    profiles:
+      - blue
+    environment:
+      NODE_ENV: production
+    networks:
+      - folory
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend-green:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/frontend:${GREEN_TAG:-latest}
+    container_name: folory-frontend-green
+    profiles:
+      - green
+    environment:
+      NODE_ENV: production
+    networks:
+      - folory
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  worker:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${WORKER_TAG:-latest}
+    container_name: folory-worker
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'queue:work' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  scheduler:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${WORKER_TAG:-latest}
+    container_name: folory-scheduler
+    command: ["sh", "-c", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  folory:
+    driver: bridge
