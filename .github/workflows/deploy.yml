@@ -48,7 +48,20 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
             set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
-            git pull origin main || git pull origin master
+            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
+            if [[ ! -d "$DEPLOY_PATH" ]]; then
+              echo "Deploy dizini yok: $DEPLOY_PATH" >&2
+              echo "Sunucuda bir kez: bash -c \"curl -fsSL ...\" veya setup-repo.sh çalıştırın." >&2
+              exit 1
+            fi
+            if [[ -f "$DEPLOY_PATH/scripts/git-sync.sh" ]]; then
+              bash "$DEPLOY_PATH/scripts/git-sync.sh" "$DEPLOY_PATH"
+            else
+              REPO_DIR="$(dirname "$DEPLOY_PATH")"
+              cd "$REPO_DIR"
+              git remote set-url origin git@github.com:erenpadem/folory-app.git
+              GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull --ff-only origin main || git pull --ff-only origin master
+            fi
+            cd "$DEPLOY_PATH"
             chmod +x scripts/*.sh
             ./scripts/deploy.sh "${{ steps.tag.outputs.value }}"

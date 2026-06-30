@@ -44,4 +44,4 @@ docker compose --profile blue exec -T api-blue php artisan migrate --force --no-
 echo "blue" > .active-slot
 cp nginx/upstreams/blue.conf nginx/upstreams/active.conf
 
-echo "Bootstrap complete. App should be reachable on port ${HTTP_PORT:-80}."
+echo "Bootstrap complete. App should be reachable at http://${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8082}"

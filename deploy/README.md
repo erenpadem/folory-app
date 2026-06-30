@@ -62,15 +62,47 @@ www.fo-lory.com  →  178.104.191.166   (opsiyonel CNAME veya A)
 
 ## Sunucu kurulumu (ilk kez)
 
+GitHub artık HTTPS + şifre/PAT ile `git clone` kabul etmiyor. Sunucuda **SSH anahtarı** kullanın.
+
+### 1. GitHub SSH anahtarı (sunucuda bir kez)
+
 ```bash
-git clone https://github.com/erenpadem/folory-app.git /opt/folory
+# root veya deploy kullanıcısı ile
+ssh-keygen -t ed25519 -C "folory-server" -f ~/.ssh/id_ed25519 -N ""
+cat ~/.ssh/id_ed25519.pub
+```
+
+Çıkan public key'i GitHub → **Settings → SSH and GPG keys → New SSH key** ile ekleyin.
+
+```bash
+ssh -T git@github.com
+# "Hi erenpadem! You've successfully authenticated..." görmelisiniz
+```
+
+### 2. Repoyu SSH ile clone
+
+```bash
+git clone git@github.com:erenpadem/folory-app.git /opt/folory
 cd /opt/folory/deploy
-cp .env.example .env
-# APP_KEY üret: docker run --rm php:8.3-cli php -r "echo 'base64:'.base64_encode(random_bytes(32));"
-# DB_PASSWORD ve GHCR_TOKEN doldur
 chmod +x scripts/*.sh
+./scripts/setup-repo.sh /opt/folory
+```
+
+`setup-repo.sh` `.env` oluşturur. Düzenleyin:
+
+```bash
+nano /opt/folory/deploy/.env
+# APP_KEY, DB_PASSWORD, GHCR_TOKEN
 ./scripts/bootstrap.sh latest
-# Test: curl -I http://127.0.0.1:8082/up
+curl -I http://127.0.0.1:8082/up
+```
+
+### HTTPS remote hatası (daha önce clone ettiyseniz)
+
+```bash
+cd /opt/folory
+git remote set-url origin git@github.com:erenpadem/folory-app.git
+./deploy/scripts/git-sync.sh /opt/folory/deploy
 ```
 
 `.env` içinde `HTTP_BIND=127.0.0.1` ve `HTTP_PORT=8082` olduğundan emin olun.
@@ -85,6 +117,8 @@ chmod +x scripts/*.sh
 | `DEPLOY_USER` | SSH kullanıcı adınız |
 | `DEPLOY_SSH_KEY` | Private key |
 | `DEPLOY_PATH` | `/opt/folory/deploy` |
+
+Sunucuda repo **SSH remote** ile kurulu olmalı (`git@github.com:erenpadem/folory-app.git`). CI deploy `git-sync.sh` ile günceller — HTTPS/token gerekmez.
 
 **Variables** (Settings → Variables → Actions):
 
