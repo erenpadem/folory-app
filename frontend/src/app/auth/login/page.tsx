@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 import { BRAND_NAME } from '@/lib/brand'
+import type { LoginType, RegisterType } from '@/lib/validations/auth'
 
 export default function LoginPage() {
   const { 
@@ -45,9 +46,9 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, user, router, searchParams])
 
-  const handleLogin = async (credentials: { email: string; password: string }) => {
+  const handleLogin = async (values: LoginType) => {
     try {
-      await login(credentials)
+      await login({ email: values.email, password: values.password })
       toast.success('Giriş başarılı! Yönlendiriliyorsunuz...')
       // Redirect will be handled by useEffect
     } catch (err) {
@@ -55,14 +56,9 @@ export default function LoginPage() {
     }
   }
 
-  const handleRegister = async (data: { 
-    name: string
-    email: string
-    password: string
-    password_confirmation: string
-  }) => {
+  const handleRegister = async (values: RegisterType) => {
     try {
-      await register(data)
+      await register(values)
       toast.success('Kayıt başarılı! Giriş yapabilirsiniz.')
     } catch (err) {
       // Error is already handled by the auth store
@@ -86,7 +82,7 @@ export default function LoginPage() {
             <TabsContent value="login">
               <AuthForm
                 type="login"
-                onSubmit={handleLogin}
+                onSubmit={(values) => handleLogin(values as LoginType)}
                 footer={
                   <div className="flex justify-between w-full">
                     <Button variant="link" className="px-0 text-sm" asChild>
@@ -105,7 +101,7 @@ export default function LoginPage() {
             <TabsContent value="register">
               <AuthForm
                 type="register"
-                onSubmit={handleRegister}
+                onSubmit={(values) => handleRegister(values as RegisterType)}
                 footer={
                   <Button variant="link" className="px-0 text-sm" asChild>
                     <Link href={loginTabHref}>Zaten hesabın var mı?</Link>

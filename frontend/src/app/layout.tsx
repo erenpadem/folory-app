@@ -22,6 +22,8 @@ const geistMono = Geist_Mono({
 const site = getSiteUrl()
 const siteOrigin = site.origin
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   metadataBase: site,
   title: {

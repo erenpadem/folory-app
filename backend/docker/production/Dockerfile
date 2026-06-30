@@ -42,7 +42,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY . .
 
-RUN composer dump-autoload --optimize --no-dev \
+RUN composer dump-autoload --optimize --no-dev --no-scripts \
     && chown -R $user:www-data /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 

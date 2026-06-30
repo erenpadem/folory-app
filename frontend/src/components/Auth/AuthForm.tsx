@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { AuthVerify } from './AuthVerify'
@@ -68,7 +68,7 @@ export function AuthForm({
   }
 
   const form = useForm<AuthFormValues>({
-    resolver: zodResolver(formSchemas[type]),
+    resolver: zodResolver(formSchemas[type] as never) as Resolver<AuthFormValues>,
     defaultValues: defaultValues[type]
   })
 

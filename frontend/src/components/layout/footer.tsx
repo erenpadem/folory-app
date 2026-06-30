@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import { BookOpen } from "lucide-react";
 import { BRAND_NAME } from "@/lib/brand"
+import { useBookEditorStore } from "@/features/books/presentation/stores/book-editor.store";
 
  function Footer() {
     const pathname = usePathname();

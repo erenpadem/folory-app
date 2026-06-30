@@ -134,7 +134,19 @@ Sunucuda repo **SSH remote** ile kurulu olmalı (`git@github.com:erenpadem/folor
 - Sunucu `.env`: `IMAGE_NAME=erenpadem/folory-app`, `GHCR_USERNAME=erenpadem`
 - Sunucu pull için `GHCR_TOKEN` (PAT, `read:packages`)
 
-İlk push sonrası GitHub → Packages → package visibility **public** veya token ile private pull.
+İlk push sonrası GitHub → **Packages** → `folory-app/backend` ve `folory-app/frontend` görünür.
+
+Sunucuda pull (tam yol):
+
+```bash
+docker pull ghcr.io/erenpadem/folory-app/backend:latest
+docker pull ghcr.io/erenpadem/folory-app/frontend:latest
+```
+
+Package private ise: GitHub → Package → **Package settings** → **Change visibility** → **Public**  
+veya sunucu `.env` içinde `GHCR_TOKEN` (PAT, `read:packages`).
+
+**GitHub repo ayarı:** Settings → Actions → General → Workflow permissions → **Read and write permissions** açık olmalı (GHCR push için).
 
 ## CI/CD
 
