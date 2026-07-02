@@ -35,6 +35,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --chown=node:node --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node . .
 
+RUN chown -R node:node /app
+
 USER node
 RUN npm run build
 
