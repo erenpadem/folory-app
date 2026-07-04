@@ -19,7 +19,11 @@ RUN set -ex \
         libfreetype6-dev \
         libxml2-dev \
         libpq-dev \
+        $PHPIZE_DEPS \
     && docker-php-ext-install pdo pdo_pgsql \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get purge -y --auto-remove $PHPIZE_DEPS \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -46,6 +50,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 COPY . .
 
 RUN composer dump-autoload --optimize --no-dev --no-scripts \
+    && php artisan package:discover --ansi \
     && chown -R $user:www-data /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 

@@ -15,8 +15,12 @@ fi
 cp "$UPSTREAM_DIR/${SLOT}.conf" "$UPSTREAM_DIR/active.conf"
 
 cd "$DEPLOY_DIR"
-docker compose exec edge nginx -t
-docker compose exec edge nginx -s reload
+if docker compose ps --status running --format '{{.Service}}' edge 2>/dev/null | grep -qx edge; then
+    docker compose exec edge nginx -t
+    docker compose exec edge nginx -s reload
+else
+    docker compose up -d edge
+fi
 
 echo "$SLOT" > "$DEPLOY_DIR/.active-slot"
 echo "Traffic switched to ${SLOT} slot."

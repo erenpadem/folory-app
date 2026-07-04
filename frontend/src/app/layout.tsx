@@ -1,5 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next"
+import { Suspense } from "react"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Navbar from "@/components/layout/navbar"
@@ -124,7 +125,9 @@ export default function RootLayout({
         <JsonLdSiteAndOrganization />
         <Providers>
           <div className="max-w-5xl w-full mx-auto py-10 flex flex-col min-h-screen">
-            <Navbar />
+            <Suspense fallback={<div className="h-10 shrink-0" aria-hidden />}>
+              <Navbar />
+            </Suspense>
             <main className="flex-1">
               {children}
             </main>

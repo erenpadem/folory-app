@@ -32,3 +32,15 @@ else
 fi
 
 echo "Repo güncel: $(git rev-parse --short HEAD)"
+
+# git pull active.conf'u repo şablonuna (blue) döndürebilir — çalışan slot'u geri yükle
+if [[ -f "$DEPLOY_DIR/.active-slot" ]]; then
+    SLOT="$(tr -d '[:space:]' < "$DEPLOY_DIR/.active-slot")"
+    if [[ "$SLOT" == "blue" || "$SLOT" == "green" ]] && [[ -f "$DEPLOY_DIR/nginx/upstreams/${SLOT}.conf" ]]; then
+        cp "$DEPLOY_DIR/nginx/upstreams/${SLOT}.conf" "$DEPLOY_DIR/nginx/upstreams/active.conf"
+        echo "active.conf → ${SLOT} slot (git pull sonrası senkron)"
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx folory-edge; then
+            docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec edge nginx -s reload 2>/dev/null || true
+        fi
+    fi
+fi

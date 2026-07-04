@@ -1,0 +1,44 @@
+# Host nginx — /etc/nginx/sites-available/fo-lory.com
+# Tüm trafik (/, /api, /up, /sanctum) Fo-lory edge'e gider.
+# AYRI location /api { ... } EKLEMEYİN — mentora/docker-api ile çakışır.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name fo-lory.com www.fo-lory.com;
+
+    # certbot sonrası HTTPS'e yönlendir (opsiyonel)
+    # return 301 https://$host$request_uri;
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# SSL (certbot --nginx -d fo-lory.com -d www.fo-lory.com sonrası örnek)
+# server {
+#     listen 443 ssl http2;
+#     listen [::]:443 ssl http2;
+#     server_name fo-lory.com www.fo-lory.com;
+#
+#     ssl_certificate     /etc/letsencrypt/live/fo-lory.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/fo-lory.com/privkey.pem;
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:8082;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection "upgrade";
+#     }
+# }

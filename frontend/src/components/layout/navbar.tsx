@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Menu, User, LogOut, LayoutDashboard, Bookmark, Bell, Settings, CircleUser, LogIn, UserPlus } from 'lucide-react'
@@ -14,9 +14,10 @@ import Image from 'next/image'
 import ThemeChanger from './theme-switcher'
 import { useAuth } from '@/features/auth'
 import { useNotifications } from '@/hooks/use-notifications'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { BRAND_NAME } from '@/lib/brand'
+import { buildLoginUrl } from '@/lib/auth-redirect'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import {
@@ -39,7 +40,17 @@ const Navbar = () => {
     const { unreadCount } = useNotifications()
     const router = useRouter()
     const pathname = usePathname()
+    const searchParams = useSearchParams()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+    const authReturnTo = useMemo(() => {
+        const query = searchParams.toString()
+        const path = pathname + (query ? `?${query}` : '')
+        return path === '/' ? undefined : path
+    }, [pathname, searchParams])
+
+    const loginHref = buildLoginUrl({ returnTo: authReturnTo })
+    const registerHref = buildLoginUrl({ tab: 'register', returnTo: authReturnTo })
 
     useEffect(() => {
         setMobileMenuOpen(false)
@@ -78,16 +89,6 @@ const Navbar = () => {
         } catch {
             toast.error('Çıkış sırasında bir hata oluştu')
         }
-    }
-
-    const navigateToAuth = (tab: 'login' | 'register') => {
-        const rt = getCurrentReturnTo()
-        const returnTo = rt === '/' ? undefined : rt
-        router.push(
-            tab === 'register'
-                ? buildLoginUrl({ tab: 'register', returnTo })
-                : buildLoginUrl({ returnTo })
-        )
     }
 
     const syncWizardStepUrl = (step: number) => {
@@ -287,13 +288,17 @@ const Navbar = () => {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-48" align="end">
-                                    <DropdownMenuItem onSelect={() => navigateToAuth('login')}>
-                                        <LogIn className="mr-2 h-4 w-4" />
-                                        Giriş Yap
+                                    <DropdownMenuItem asChild>
+                                        <Link href={loginHref}>
+                                            <LogIn className="mr-2 h-4 w-4" />
+                                            Giriş Yap
+                                        </Link>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => navigateToAuth('register')}>
-                                        <UserPlus className="mr-2 h-4 w-4" />
-                                        Kayıt Ol
+                                    <DropdownMenuItem asChild>
+                                        <Link href={registerHref}>
+                                            <UserPlus className="mr-2 h-4 w-4" />
+                                            Kayıt Ol
+                                        </Link>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -429,18 +434,22 @@ const Navbar = () => {
                                     <Button
                                         variant="outline"
                                         className="w-full justify-start gap-2"
-                                        onClick={() => navigateToAuth('login')}
+                                        asChild
                                     >
-                                        <LogIn className="h-4 w-4" />
-                                        Giriş Yap
+                                        <Link href={loginHref}>
+                                            <LogIn className="h-4 w-4" />
+                                            Giriş Yap
+                                        </Link>
                                     </Button>
                                     <Button
                                         variant="secondary"
                                         className="w-full justify-start gap-2"
-                                        onClick={() => navigateToAuth('register')}
+                                        asChild
                                     >
-                                        <UserPlus className="h-4 w-4" />
-                                        Kayıt Ol
+                                        <Link href={registerHref}>
+                                            <UserPlus className="h-4 w-4" />
+                                            Kayıt Ol
+                                        </Link>
                                     </Button>
                                 </div>
                             )}

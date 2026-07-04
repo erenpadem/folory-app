@@ -48,9 +48,27 @@ fi
 
 export WORKER_TAG="$IMAGE_TAG"
 
+pull_slot_images() {
+    docker compose --profile "$INACTIVE_SLOT" pull "api-${INACTIVE_SLOT}" "frontend-${INACTIVE_SLOT}"
+    docker compose pull worker scheduler
+}
+
 echo "Pulling images..."
-docker compose --profile "$INACTIVE_SLOT" pull "api-${INACTIVE_SLOT}" "frontend-${INACTIVE_SLOT}"
-docker compose pull worker scheduler
+if ! pull_slot_images; then
+    if [[ "$IMAGE_TAG" != "latest" ]]; then
+        echo "Tag ${IMAGE_TAG} not found on GHCR — falling back to latest." >&2
+        IMAGE_TAG="latest"
+        if [[ "$INACTIVE_SLOT" == "blue" ]]; then
+            export BLUE_TAG="$IMAGE_TAG"
+        else
+            export GREEN_TAG="$IMAGE_TAG"
+        fi
+        export WORKER_TAG="$IMAGE_TAG"
+        pull_slot_images
+    else
+        exit 1
+    fi
+fi
 
 echo "Starting shared infrastructure (if not running)..."
 docker compose up -d postgres redis
@@ -63,6 +81,10 @@ docker compose --profile "$INACTIVE_SLOT" exec -T "api-${INACTIVE_SLOT}" php art
 
 echo "Health checking inactive slot..."
 "$SCRIPT_DIR/health-check.sh" "$INACTIVE_SLOT"
+
+echo "Ensuring edge nginx is running..."
+cp "nginx/upstreams/${INACTIVE_SLOT}.conf" "nginx/upstreams/active.conf"
+docker compose up -d edge
 
 echo "Switching traffic to ${INACTIVE_SLOT}..."
 "$SCRIPT_DIR/switch-slot.sh" "$INACTIVE_SLOT"
@@ -85,9 +107,6 @@ if grep -q "^BLUE_TAG=" .env 2>/dev/null; then
     fi
     rm -f .env.bak
 fi
-
-echo "Ensuring edge nginx is running..."
-docker compose up -d edge
 
 SOAK_SECONDS="${DRAIN_SOAK_SECONDS:-30}"
 echo "Soaking ${SOAK_SECONDS}s before stopping old slot (${ACTIVE_SLOT})..."

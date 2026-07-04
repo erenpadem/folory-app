@@ -31,7 +31,11 @@ Fo-lory stack'i **host'a sadece `127.0.0.1:8082`** bind eder. Postgres, Redis, A
 
 ### fo-lory.com → Fo-lory yönlendirme
 
-Host'ta 80/443'te çalışan nginx/Caddy varsa `fo-lory.com` için upstream:
+Host'ta 80/443'te çalışan nginx/Caddy varsa **tüm path'ler** ( `/`, `/api`, `/up`, `/sanctum` ) tek upstream'e gider: `127.0.0.1:8082` (Fo-lory edge). Edge nginx API ile frontend'i ayırır.
+
+**Önemli:** Host nginx'te `location /api { ... }` **ayrı tanımlamayın**. Sunucuda mentora/docker-api için `/api` kuralı varsa `fo-lory.com` için çakışır ve `/api/books` → `nginx/1.18.0` 404 döner.
+
+Örnek dosya: `deploy/nginx/host-fo-lory.com.conf.example`
 
 ```nginx
 # /etc/nginx/sites-available/fo-lory.com
@@ -41,6 +45,7 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:8082;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -50,6 +55,29 @@ server {
 ```
 
 SSL için certbot veya Cloudflare kullanın. `.env` içinde `HTTP_PORT=8082` ve `HTTP_BIND=127.0.0.1` bırakın.
+
+### Sorun giderme (404)
+
+| URL | Beklenen | Yanlış işaret |
+|-----|----------|---------------|
+| `https://fo-lory.com/` | Fo-lory ana sayfa | — |
+| `https://fo-lory.com/up` | `200` (Laravel) | `X-Powered-By: Next.js` → edge `/up` kuralı eksik |
+| `https://fo-lory.com/api/books` | `200` JSON | `nginx/1.18.0` HTML → host `/api` çakışması |
+
+Sunucuda:
+
+```bash
+# Host nginx'te fo-lory.com için ayrı /api kuralı var mı?
+grep -r "location.*/api" /etc/nginx/sites-enabled/
+
+# Edge doğrudan (host'u atla)
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8082/up
+curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8082/api/books?per_page=1"
+
+# Edge /up düzeltmesi (repo güncel değilse)
+sed -i 's#^/(api|up|sanctum|storage)/#^/(api|up|sanctum|storage)(/|$)#' /opt/folory/deploy/nginx/conf.d/default.conf
+docker compose -f /opt/folory/deploy/docker-compose.yml exec edge nginx -s reload
+```
 
 ## DNS
 
