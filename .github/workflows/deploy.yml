@@ -134,8 +134,8 @@ jobs:
             REPO_DIR="$(dirname "$DEPLOY_PATH")"
             cd "$REPO_DIR"
             git remote set-url origin git@github.com:erenpadem/folory-app.git
-            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" \
-              git pull --ff-only origin main || git pull --ff-only origin master
+            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git fetch origin
+            git reset --hard origin/main 2>/dev/null || git reset --hard origin/master
           fi
           cd "$DEPLOY_PATH"
           chmod +x scripts/*.sh

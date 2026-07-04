@@ -22,14 +22,24 @@ fi
 
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o StrictHostKeyChecking=accept-new}"
 git fetch origin
-if git show-ref --verify --quiet refs/remotes/origin/main; then
-    git pull --ff-only origin main
-elif git show-ref --verify --quiet refs/remotes/origin/master; then
-    git pull --ff-only origin master
-else
-    echo "origin/main veya origin/master bulunamadı" >&2
-    exit 1
+
+BRANCH="main"
+if ! git show-ref --verify --quiet refs/remotes/origin/main; then
+    if git show-ref --verify --quiet refs/remotes/origin/master; then
+        BRANCH="master"
+    else
+        echo "origin/main veya origin/master bulunamadı" >&2
+        exit 1
+    fi
 fi
+
+# Deploy sunucusu: tracked dosyalarda yerel değişiklik olmamalı (.env hariç, gitignore'da)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Yerel değişiklikler atılıyor (deploy sunucusu → origin/${BRANCH})"
+    git reset --hard "HEAD"
+fi
+
+git reset --hard "origin/${BRANCH}"
 
 echo "Repo güncel: $(git rev-parse --short HEAD)"
 

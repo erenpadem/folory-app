@@ -1,0 +1,31 @@
+# /etc/nginx/sites-available/beta.fo-lory.com
+# DNS: beta.fo-lory.com → sunucu IP
+
+server {
+    listen 443 ssl http2;
+    server_name beta.fo-lory.com;
+
+    ssl_certificate     /etc/ssl/folory/fo-lory_com.pem;
+    ssl_certificate_key /etc/ssl/folory/fo-lory_com.key;
+
+    # İsteğe bağlı: sadece davetliler (htpasswd oluştur: htpasswd -c /etc/nginx/.htpasswd-folory-beta beta)
+    # auth_basic "Fo-lory Beta";
+    # auth_basic_user_file /etc/nginx/.htpasswd-folory-beta;
+
+    location / {
+        proxy_pass http://127.0.0.1:8083;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+server {
+    listen 80;
+    server_name beta.fo-lory.com;
+    return 301 https://$host$request_uri;
+}

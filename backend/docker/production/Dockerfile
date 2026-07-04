@@ -55,6 +55,8 @@ RUN composer dump-autoload --optimize --no-dev --no-scripts \
     && chmod -R 775 storage bootstrap/cache
 
 COPY docker/production/nginx/default.conf /etc/nginx/conf.d/default.conf
+# Debian nginx ships sites-enabled/default — conflicts with our Laravel vhost (404 on /up, /api)
+RUN rm -f /etc/nginx/sites-enabled/default
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/development/workspace/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY docker/production/entrypoint.sh /usr/local/bin/entrypoint.sh

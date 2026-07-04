@@ -1,0 +1,123 @@
+# Fo-lory BETA — tek slot (blue-green yok). Yazar feedback için.
+# Host bind: 127.0.0.1:8083  |  Domain: beta.fo-lory.com (önerilir)
+# Çalıştır: docker compose -f docker-compose.beta.yml --env-file .env.beta up -d
+
+name: folory-beta
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend-env: &backend-env
+  env_file:
+    - .env.beta
+  environment:
+    APP_ENV: staging
+    APP_DEBUG: "false"
+    DB_HOST: postgres
+    REDIS_HOST: redis
+    RUN_MIGRATIONS: "true"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - folory-beta
+  restart: unless-stopped
+  logging: *default-logging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: folory-beta-postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-folory_beta}
+      POSTGRES_USER: ${DB_USERNAME:-folory}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - beta_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - folory-beta
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    container_name: folory-beta-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - beta_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - folory-beta
+    restart: unless-stopped
+    logging: *default-logging
+
+  edge:
+    image: nginx:1.27-alpine
+    container_name: folory-beta-edge
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8083}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/upstreams/beta.conf:/etc/nginx/upstreams/active.conf:ro
+    networks:
+      - folory-beta
+    restart: unless-stopped
+    logging: *default-logging
+
+  api:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${BETA_TAG:-latest}
+    container_name: folory-beta-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/frontend:${BETA_TAG:-latest}
+    container_name: folory-beta-frontend
+    environment:
+      NODE_ENV: production
+    networks:
+      - folory-beta
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  worker:
+    <<: *backend-env
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-erenpadem/folory-app}/backend:${BETA_TAG:-latest}
+    container_name: folory-beta-worker
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    healthcheck:
+      disable: true
+
+volumes:
+  beta_postgres_data:
+  beta_redis_data:
+
+networks:
+  folory-beta:
+    driver: bridge

@@ -204,6 +204,75 @@ veya sunucu `.env` içinde `GHCR_TOKEN` (PAT, `read:packages`).
 
 **GitHub repo ayarı:** Settings → Actions → General → Workflow permissions → **Read and write permissions** açık olmalı (GHCR push için).
 
+## Beta modu (yazar feedback, prod gizli)
+
+Prod'a geçmeden önce iki pratik seçenek:
+
+### Seçenek A — En kolay: fo-lory.com + şifre (önerilen)
+
+Mevcut stack (`8082`, blue-green) **aynı kalır**. Sadece host nginx'e HTTP Basic Auth eklersin; Google'da çıkmaz, şifreyi yazarlarla paylaşırsın.
+
+```bash
+apt install -y apache2-utils
+htpasswd -c /etc/nginx/.htpasswd-folory betauser
+
+cp /opt/folory/deploy/nginx/host-fo-lory.com-auth.conf.example \
+   /etc/nginx/sites-enabled/folory.conf
+nginx -t && systemctl reload nginx
+```
+
+Örnek: `deploy/nginx/host-fo-lory.com-auth.conf.example`
+
+### Seçenek B — fo-lory.com gizle + beta.fo-lory.com
+
+| | Prod (mevcut) | Beta (yeni) |
+|--|---------------|-------------|
+| Compose | `docker-compose.yml` | `docker-compose.beta.yml` |
+| Slot | blue/green | tek api + frontend |
+| Port | `8082` | `8083` |
+| DB | `folory` | `folory_beta` (ayrı) |
+
+**1. Ana domain gizle** (Yakında sayfası):
+
+```bash
+mkdir -p /var/www/folory-maintenance
+cp /opt/folory/deploy/nginx/maintenance/index.html /var/www/folory-maintenance/
+cp /etc/nginx/sites-enabled/folory.conf /etc/nginx/sites-enabled/folory.conf.public.bak
+cp /opt/folory/deploy/nginx/host-fo-lory.com-hidden.conf.example \
+   /etc/nginx/sites-enabled/folory.conf
+nginx -t && systemctl reload nginx
+```
+
+**2. DNS:** `beta.fo-lory.com` → sunucu IP
+
+**3. Beta stack:**
+
+```bash
+cd /opt/folory/deploy
+cp .env.beta.example .env.beta
+# APP_KEY, DB_PASSWORD, GHCR_TOKEN, URL'leri düzenle
+chmod +x scripts/bootstrap-beta.sh
+./scripts/bootstrap-beta.sh latest
+```
+
+**4. Host nginx beta:**
+
+```bash
+ln -sf /opt/folory/deploy/nginx/host-beta.fo-lory.com.conf.example \
+  /etc/nginx/sites-enabled/beta.fo-lory.com.conf
+nginx -t && systemctl reload nginx
+```
+
+**Önemli:** Frontend `NEXT_PUBLIC_API_URL` build-time'da bake edilir. Beta subdomain için CI'da `https://beta.fo-lory.com` ile **ayrı frontend build** gerekir; yoksa API istekleri `fo-lory.com`'a gider. Seçenek A'da bu sorun yok (aynı domain).
+
+Prod stack'i RAM'den düşürmek için (opsiyonel):
+
+```bash
+cd /opt/folory/deploy
+docker compose --profile blue stop api-blue frontend-blue edge
+# postgres/redis prod — beta kendi DB'sini kullanır
+```
+
 ## CI/CD
 
 | Workflow | Görev |

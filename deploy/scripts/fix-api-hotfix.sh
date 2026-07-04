@@ -30,6 +30,12 @@ docker exec -u root "$API" sed -i \
   's|\$document_root\$fastcgi_script_name|\$realpath_root\$fastcgi_script_name|' \
   /etc/nginx/conf.d/default.conf
 
+echo "→ Remove Debian default site (conflicting server_name _ → 404)"
+docker exec -u root "$API" rm -f /etc/nginx/sites-enabled/default
+
+echo "→ Ensure Laravel vhost is default_server"
+docker exec -u root "$API" sed -i 's/listen 80;/listen 80 default_server;/' /etc/nginx/conf.d/default.conf
+
 echo "→ Clear bootstrap cache"
 docker exec -u root "$API" rm -f /var/www/html/bootstrap/cache/*.php
 
@@ -53,7 +59,9 @@ if [[ "$UP_CODE" != "200" ]]; then
     echo ""
     echo "Still failing — diagnostics:" >&2
     docker exec "$API" supervisorctl status >&2 || true
-    docker exec "$API" ls -la /var/www/html/public/index.php >&2 || true
+    docker exec "$API" ls -la /etc/nginx/sites-enabled/ 2>&1 >&2 || true
+    docker exec "$API" curl -s http://127.0.0.1/up 2>&1 | head -5 >&2 || true
+    docker exec "$API" curl -s -o /dev/null -w "direct /up: %{http_code}\n" http://127.0.0.1/up >&2 || true
     docker logs "$API" --tail 30 2>&1 | grep -iE 'script|error|fatal|redis' >&2 || docker logs "$API" --tail 15 >&2
     exit 1
 fi
