@@ -128,14 +128,16 @@ jobs:
             echo "Deploy dizini yok: $DEPLOY_PATH" >&2
             exit 1
           fi
+          REPO_DIR="$(dirname "$DEPLOY_PATH")"
+          cd "$REPO_DIR"
+          git remote set-url origin git@github.com:erenpadem/folory-app.git
+          export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
+          git fetch origin
+          # Eski git-sync.sh pull kullanıyorsa bile önce origin/main'e zorla (yerel script değişiklikleri atılır)
+          git reset --hard origin/main 2>/dev/null || git reset --hard origin/master
+          echo "Repo sync: $(git rev-parse --short HEAD)"
           if [[ -f "$DEPLOY_PATH/scripts/git-sync.sh" ]]; then
             bash "$DEPLOY_PATH/scripts/git-sync.sh" "$DEPLOY_PATH"
-          else
-            REPO_DIR="$(dirname "$DEPLOY_PATH")"
-            cd "$REPO_DIR"
-            git remote set-url origin git@github.com:erenpadem/folory-app.git
-            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git fetch origin
-            git reset --hard origin/main 2>/dev/null || git reset --hard origin/master
           fi
           cd "$DEPLOY_PATH"
           chmod +x scripts/*.sh
