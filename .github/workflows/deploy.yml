@@ -80,12 +80,16 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.image_tag }}" ]; then
-            echo "value=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ inputs.image_tag }}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=latest" >> "$GITHUB_OUTPUT"
+            TAG="latest"
           else
-            echo "value=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            FULL_SHA="${{ github.event.workflow_run.head_sha }}"
+            # GHCR: kısa sha (3e2e019) + latest; tam sha da build sonrası eklenir
+            TAG="${FULL_SHA:0:7}"
           fi
+          echo "value=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploy image tag: ${TAG}"
 
       - name: Deploy via SSH
         if: steps.config.outputs.configured == 'true'
@@ -93,11 +97,25 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
         run: |
           set -euo pipefail
           KEY_FILE="$HOME/.ssh/deploy_key"
+
+          # Secret'lardaki satır sonu/boşluk temizle (GitHub UI bazen ekler)
+          DEPLOY_USER="$(printf '%s' "$DEPLOY_USER" | tr -d '\r\n[:space:]')"
+          DEPLOY_HOST="$(printf '%s' "$DEPLOY_HOST" | tr -d '\r\n[:space:]')"
+          DEPLOY_PATH="$(printf '%s' "$DEPLOY_PATH" | tr -d '\r\n')"
+          DEPLOY_PORT="$(printf '%s' "${DEPLOY_PORT:-22}" | tr -d '\r\n[:space:]')"
+
+          if ! [[ "$DEPLOY_USER" =~ ^[a-zA-Z][a-zA-Z0-9._-]*$ ]]; then
+            echo "::error::DEPLOY_USER geçersiz: [$DEPLOY_USER]"
+            echo "GitHub secret'ı sadece şu olmalı: root (başında/sonunda boşluk yok)"
+            exit 1
+          fi
+
+          echo "SSH: ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PORT}"
 
           ssh -i "$KEY_FILE" \
             -o IdentitiesOnly=yes \
