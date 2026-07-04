@@ -263,7 +263,25 @@ ln -sf /opt/folory/deploy/nginx/host-beta.fo-lory.com.conf.example \
 nginx -t && systemctl reload nginx
 ```
 
-**Önemli:** Frontend `NEXT_PUBLIC_API_URL` build-time'da bake edilir. Beta subdomain için CI'da `https://beta.fo-lory.com` ile **ayrı frontend build** gerekir; yoksa API istekleri `fo-lory.com`'a gider. Seçenek A'da bu sorun yok (aynı domain).
+**Önemli:** Frontend `NEXT_PUBLIC_API_URL` build-time'da bake edilir. Beta subdomain için:
+
+1. GitHub → **Actions** → **Build Beta** → **Run workflow** (beta URL'leriyle imaj)
+2. Sunucuda `BETA_TAG=beta` ile bootstrap
+
+```bash
+./scripts/bootstrap-beta.sh beta
+```
+
+**Ana site → beta yönlendirme** (fo-lory.com ziyaretçileri beta'ya gider):
+
+```bash
+cp /etc/nginx/sites-enabled/folory.conf /etc/nginx/sites-enabled/folory.conf.public.bak
+cp /opt/folory/deploy/nginx/host-fo-lory.com-redirect-beta.conf.example \
+   /etc/nginx/sites-enabled/folory.conf
+ln -sf /opt/folory/deploy/nginx/host-beta.fo-lory.com.conf.example \
+  /etc/nginx/sites-enabled/beta.fo-lory.com.conf
+nginx -t && systemctl reload nginx
+```
 
 Prod stack'i RAM'den düşürmek için (opsiyonel):
 

@@ -1,0 +1,24 @@
+# fo-lory.com + www → beta.fo-lory.com yönlendirme (geçici)
+# Sunucuda:
+#   cp /etc/nginx/sites-enabled/folory.conf /etc/nginx/sites-enabled/folory.conf.public.bak
+#   cp /opt/folory/deploy/nginx/host-fo-lory.com-redirect-beta.conf.example \
+#      /etc/nginx/sites-enabled/folory.conf
+#   ln -sf /opt/folory/deploy/nginx/host-beta.fo-lory.com.conf.example \
+#      /etc/nginx/sites-enabled/beta.fo-lory.com.conf
+#   nginx -t && systemctl reload nginx
+
+server {
+    listen 443 ssl http2;
+    server_name fo-lory.com www.fo-lory.com;
+
+    ssl_certificate     /etc/ssl/folory/fo-lory_com.pem;
+    ssl_certificate_key /etc/ssl/folory/fo-lory_com.key;
+
+    return 302 https://beta.fo-lory.com$request_uri;
+}
+
+server {
+    listen 80;
+    server_name fo-lory.com www.fo-lory.com;
+    return 301 https://beta.fo-lory.com$request_uri;
+}
