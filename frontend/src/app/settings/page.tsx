@@ -18,7 +18,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { User, Mail, Lock, Bell, Shield, Image as ImageIcon, Save, X, Loader2 } from 'lucide-react'
+import { User, Mail, Lock, Bell, Shield, Image as ImageIcon, Save, X, Loader2, PenLine } from 'lucide-react'
+import Link from 'next/link'
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import api from '@/shared/lib/api-client'
 import { useMutation } from '@tanstack/react-query'
@@ -111,6 +112,35 @@ export default function SettingsPage() {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Şifre değiştirilirken bir hata oluştu')
+    },
+  })
+
+  const isEmailVerified = Boolean(user?.emailVerifiedAt)
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: async () => {
+      await api.post('/api/email/verification-notification')
+    },
+    onSuccess: () => {
+      toast.success('Doğrulama e-postası gönderildi')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'E-posta gönderilemedi')
+    },
+  })
+
+  const becomeAuthorMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post<{ success: boolean; message?: string }>('/api/user/become-author')
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Artık yazar olarak kitap oluşturabilirsiniz')
+      void fetchUser()
+      router.push('/dashboard/books/new')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Yazar hesabına geçilemedi')
     },
   })
 
@@ -251,7 +281,59 @@ export default function SettingsPage() {
         </AppTabsList>
 
         {/* Profile Settings */}
-        <AppTabsContent value="profile">
+        <AppTabsContent value="profile" className="space-y-6">
+          {user.role !== 'author' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PenLine className="h-5 w-5" />
+                  Yazar hesabına geç
+                </CardTitle>
+                <CardDescription>
+                  Folory&apos;da kitap yazmak ve yayınlamak için yazar hesabına geçmeniz gerekir.
+                  Kayıt sırasında hesabınız okuyucu olarak açılır; yazar olmak istediğinizde bu adımı tamamlayın.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!isEmailVerified ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Önce e-posta adresinizi doğrulayın. Gelen kutunuzdaki kodu{' '}
+                      <Link href="/auth/verify-email" className="text-primary underline-offset-4 hover:underline">
+                        doğrulama sayfasına
+                      </Link>{' '}
+                      girin.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" asChild>
+                        <Link href="/auth/verify-email">Kodu gir</Link>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => resendVerificationMutation.mutate()}
+                        disabled={resendVerificationMutation.isPending}
+                      >
+                        {resendVerificationMutation.isPending ? 'Gönderiliyor...' : 'Doğrulama e-postası gönder'}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      E-postanız doğrulandı. Yazar hesabına geçerek kitap oluşturmaya başlayabilirsiniz.
+                    </p>
+                    <Button
+                      onClick={() => becomeAuthorMutation.mutate()}
+                      disabled={becomeAuthorMutation.isPending}
+                    >
+                      {becomeAuthorMutation.isPending ? 'Geçiliyor...' : 'Yazar ol'}
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Profil Bilgileri</CardTitle>

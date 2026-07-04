@@ -251,8 +251,9 @@ nginx -t && systemctl reload nginx
 cd /opt/folory/deploy
 cp .env.beta.example .env.beta
 # APP_KEY, DB_PASSWORD, GHCR_TOKEN, URL'leri düzenle
-chmod +x scripts/bootstrap-beta.sh
-./scripts/bootstrap-beta.sh latest
+chmod +x scripts/*.sh
+bash ./scripts/bootstrap-beta.sh beta
+# veya: ./scripts/bootstrap-beta.sh beta  (chmod sonrası)
 ```
 
 **4. Host nginx beta:**

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
-import { Menu, User, LogOut, LayoutDashboard, Bookmark, Bell, Settings, CircleUser, LogIn, UserPlus } from 'lucide-react'
+import { Menu, User, LogOut, LayoutDashboard, Bookmark, Bell, Settings, CircleUser, LogIn, UserPlus, PenLine } from 'lucide-react'
 import {
     Drawer,
     DrawerContent,
@@ -245,6 +245,10 @@ const Navbar = () => {
                                     {/* Saved and Notifications for readers only */}
                                     {user.role !== 'author' && (
                                         <>
+                                            <DropdownMenuItem onClick={() => router.push('/settings')}>
+                                                <PenLine className="mr-2 h-4 w-4" />
+                                                <span>Yazar ol</span>
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => router.push('/profile?tab=saved')}>
                                                 <Bookmark className="mr-2 h-4 w-4" />
                                                 <span>Kaydedilenler</span>
@@ -394,6 +398,13 @@ const Navbar = () => {
                                     {/* Saved and Notifications for readers only */}
                                     {user.role !== 'author' && (
                                         <>
+                                            <Link
+                                                href="/settings"
+                                                className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
+                                            >
+                                                <PenLine className="inline mr-2 h-4 w-4" />
+                                                Yazar ol
+                                            </Link>
                                             <Link
                                                 href="/profile?tab=saved"
                                                 className="block hover:opacity-80 transition-colors p-3 rounded-lg hover:bg-accent"
