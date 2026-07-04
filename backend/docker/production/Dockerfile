@@ -37,6 +37,9 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin -
 
 WORKDIR /var/www/html
 
+ENV COMPOSER_PROCESS_TIMEOUT=600 \
+    COMPOSER_HTTP_TIMEOUT=120
+
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 

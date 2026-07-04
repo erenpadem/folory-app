@@ -29,7 +29,54 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Check deploy secrets
+        id: config
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY_B64 }}
+        run: |
+          missing=()
+          [ -z "${{ secrets.DEPLOY_HOST }}" ] && missing+=("DEPLOY_HOST")
+          [ -z "${{ secrets.DEPLOY_USER }}" ] && missing+=("DEPLOY_USER")
+          [ -z "${{ secrets.DEPLOY_PATH }}" ] && missing+=("DEPLOY_PATH")
+          if [ -z "$SSH_KEY_B64" ] && [ -z "$SSH_KEY" ]; then
+            missing+=("DEPLOY_SSH_KEY_B64 veya DEPLOY_SSH_KEY")
+          fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Deploy atlandı — eksik: ${missing[*]}"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare SSH key file
+        if: steps.config.outputs.configured == 'true'
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY_B64 }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          KEY_FILE="$HOME/.ssh/deploy_key"
+
+          if [ -n "$SSH_KEY_B64" ]; then
+            echo "$SSH_KEY_B64" | tr -d '\n\r ' | base64 -d > "$KEY_FILE"
+          else
+            printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
+            sed -i 's/\r$//' "$KEY_FILE"
+          fi
+
+          chmod 600 "$KEY_FILE"
+
+          if ! ssh-keygen -y -f "$KEY_FILE" > /dev/null 2>&1; then
+            echo "::error::SSH key geçersiz. DEPLOY_SSH_KEY_B64 kullan (önerilen)."
+            exit 1
+          fi
+
+          echo "GitHub Actions key fingerprint (sunucudaki authorized_keys ile aynı olmalı):"
+          ssh-keygen -lf "$KEY_FILE"
+
       - name: Resolve image tag
+        if: steps.config.outputs.configured == 'true'
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.image_tag }}" ]; then
@@ -41,28 +88,46 @@ jobs:
           fi
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          script: |
-            set -euo pipefail
-            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
-            if [[ ! -d "$DEPLOY_PATH" ]]; then
-              echo "Deploy dizini yok: $DEPLOY_PATH" >&2
-              echo "Sunucuda bir kez: bash -c \"curl -fsSL ...\" veya setup-repo.sh çalıştırın." >&2
-              exit 1
-            fi
-            if [[ -f "$DEPLOY_PATH/scripts/git-sync.sh" ]]; then
-              bash "$DEPLOY_PATH/scripts/git-sync.sh" "$DEPLOY_PATH"
-            else
-              REPO_DIR="$(dirname "$DEPLOY_PATH")"
-              cd "$REPO_DIR"
-              git remote set-url origin git@github.com:erenpadem/folory-app.git
-              GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull --ff-only origin main || git pull --ff-only origin master
-            fi
-            cd "$DEPLOY_PATH"
-            chmod +x scripts/*.sh
-            ./scripts/deploy.sh "${{ steps.tag.outputs.value }}"
+        if: steps.config.outputs.configured == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          set -euo pipefail
+          KEY_FILE="$HOME/.ssh/deploy_key"
+
+          ssh -i "$KEY_FILE" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -p "$DEPLOY_PORT" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "DEPLOY_PATH='${DEPLOY_PATH}' IMAGE_TAG='${IMAGE_TAG}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          if [[ ! -d "$DEPLOY_PATH" ]]; then
+            echo "Deploy dizini yok: $DEPLOY_PATH" >&2
+            exit 1
+          fi
+          if [[ -f "$DEPLOY_PATH/scripts/git-sync.sh" ]]; then
+            bash "$DEPLOY_PATH/scripts/git-sync.sh" "$DEPLOY_PATH"
+          else
+            REPO_DIR="$(dirname "$DEPLOY_PATH")"
+            cd "$REPO_DIR"
+            git remote set-url origin git@github.com:erenpadem/folory-app.git
+            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" \
+              git pull --ff-only origin main || git pull --ff-only origin master
+          fi
+          cd "$DEPLOY_PATH"
+          chmod +x scripts/*.sh
+          ./scripts/deploy.sh "$IMAGE_TAG"
+          REMOTE
+
+      - name: Deploy skipped (secrets not configured)
+        if: steps.config.outputs.configured != 'true'
+        run: |
+          echo "Secrets eksik. Sunucuda manuel: cd /opt/folory/deploy && ./scripts/deploy.sh latest"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            exit 1
+          fi

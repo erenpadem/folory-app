@@ -111,12 +111,40 @@ git remote set-url origin git@github.com:erenpadem/folory-app.git
 
 **Secrets** (Settings → Secrets and variables → Actions):
 
+Otomatik deploy istiyorsan doldur. **Boş bırakırsan** Build and Push yine çalışır; Deploy workflow uyarı verip atlanır (kırmızı hata vermez).
+
 | Secret | Değer |
 |--------|-------|
 | `DEPLOY_HOST` | `178.104.191.166` |
 | `DEPLOY_USER` | SSH kullanıcı adınız |
-| `DEPLOY_SSH_KEY` | Private key |
+| `DEPLOY_SSH_KEY` | **Private key** (aşağıya bak) |
 | `DEPLOY_PATH` | `/opt/folory/deploy` |
+
+### DEPLOY_SSH_KEY nasıl alınır?
+
+Sunucuya bağlandığın **private key** gerekir (public key değil).
+
+**Windows (PowerShell):**
+```powershell
+Get-Content $env:USERPROFILE\.ssh\id_ed25519
+```
+
+**Linux/Mac:**
+```bash
+cat ~/.ssh/id_ed25519
+```
+
+Çıktı şöyle başlamalı:
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+GitHub secret'a **tamamını** yapıştır (başlık + satırlar + son satır).  
+`ssh-ed25519 AAAA...` ile başlayan satır **public key** — yanlış.
+
+Sunucuda bu private key'in **public** kısmı `~/.ssh/authorized_keys` içinde olmalı.
 
 Sunucuda repo **SSH remote** ile kurulu olmalı (`git@github.com:erenpadem/folory-app.git`). CI deploy `git-sync.sh` ile günceller — HTTPS/token gerekmez.
 
