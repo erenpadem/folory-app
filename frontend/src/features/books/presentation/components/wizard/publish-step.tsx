@@ -3,13 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  stringifyDraftPageContent,
-  useBookEditorStore,
-} from '../../stores/book-editor.store';
-import { getWizardSectionPages } from '../../utils/wizard-section-pages';
+import { useBookEditorStore } from '../../stores/book-editor.store';
 import { BookApi } from '@/features/books/infrastructure/api/book.api';
-import { unwrapSingleResource } from '@/features/books/infrastructure/api/unwrap-single-resource';
 import { BookRepositoryImpl } from '@/features/books/infrastructure/repositories/book.repository.impl';
 import { CreateBookUseCase } from '@/features/books/application/use-cases/create-book.use-case';
 import { PublishBookUseCase } from '@/features/books/application/use-cases/publish-book.use-case';
@@ -32,12 +27,11 @@ export function PublishStep() {
   const queryClient = useQueryClient();
   const {
     bookInfo,
-    sections,
-    pages,
     currentBook,
     draftBookId,
     setCurrentBook,
     setDraftBookId,
+    saveDraft,
   } = useBookEditorStore();
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -58,15 +52,13 @@ export function PublishStep() {
     setError(null);
 
     try {
-      const bookId = currentBook?.id ?? draftBookId;
-      if (!bookId || !currentBook) {
+      const bookId = await ensureDraftSynced();
+      await bookApi.updateBook(bookId, { is_draft: true });
+      const prev = useBookEditorStore.getState().currentBook ?? currentBook;
+      if (!prev) {
         setError('Kitap bulunamadı.');
         return;
       }
-
-      await saveSectionsAndPages(bookId);
-      await bookApi.updateBook(bookId, { is_draft: true });
-      const prev = useBookEditorStore.getState().currentBook ?? currentBook;
       setCurrentBook(withPublishFlags(prev, false, true));
       setDraftBookId(bookId);
 
@@ -94,26 +86,7 @@ export function PublishStep() {
     setError(null);
 
     try {
-      let bookId = currentBook?.id ?? draftBookId ?? undefined;
-
-      // Create book if it doesn't exist
-      if (!bookId) {
-        const newBook = await createBookUseCase.execute({
-          title: bookInfo.title,
-          short_description: bookInfo.shortDescription || undefined,
-          category_id: bookInfo.categoryId || undefined,
-          is_adult: bookInfo.isAdult,
-          is_draft: true,
-        });
-        bookId = newBook.id;
-        setCurrentBook(newBook);
-        setDraftBookId(newBook.id);
-      }
-
-      // Save sections and pages
-      if (bookId) {
-        await saveSectionsAndPages(bookId);
-      }
+      await ensureDraftSynced();
 
       setSuccessKind('draft');
       setSuccess(true);
@@ -121,85 +94,53 @@ export function PublishStep() {
       setTimeout(() => {
         router.push('/dashboard/books');
       }, 2000);
-    } catch (err: any) {
-      setError(err?.message || String(err) || 'Bir hata oluştu');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(
+        ax?.response?.data?.message ||
+          ax?.message ||
+          'Bir hata oluştu'
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const saveSectionsAndPages = async (bookId: number) => {
-    const savedSectionsMap = new Map<number, number>(); // tempId -> realId
-    
-    // Client uses negative IDs for unsynced entities; server IDs are positive.
-    // Save sections
-    for (const section of sections) {
-      if (section.id < 0) {
-        const raw = await bookApi.createSection(bookId, {
-          title: section.title,
-          order: section.order,
-          is_visible: section.isVisible,
-        });
-        const created = unwrapSingleResource(raw.data ?? raw);
-        savedSectionsMap.set(section.id, created.id as number);
-      } else {
-        await bookApi.updateSection(bookId, section.id, {
-          title: section.title,
-          order: section.order,
-          is_visible: section.isVisible,
-        });
-        savedSectionsMap.set(section.id, section.id);
-      }
-    }
+  /**
+   * Wizard autosave ile aynı yol: POST /books/draft (bölüm/sayfa prune dahil).
+   * Eski saveSectionsAndPages PUT /sections/{id} kullanıyordu; DB'den silinmiş
+   * bölüm id'si store'da kalınca yayında "Section not found" üretiyordu.
+   */
+  const ensureDraftSynced = async (): Promise<number> => {
+    let bookId = useBookEditorStore.getState().currentBook?.id
+      ?? useBookEditorStore.getState().draftBookId
+      ?? undefined;
 
-    // Save pages
-    for (const section of sections) {
-      const realSectionId = savedSectionsMap.get(section.id) ?? section.id;
-      const sectionPages = getWizardSectionPages(section, pages);
-
-      // DB unique (section_id, order): enforce 0..n-1 so duplicate client orders cannot collide
-      const sortedPages = [...sectionPages].sort((a, b) => {
-        const oa = a.order ?? 0;
-        const ob = b.order ?? 0;
-        if (oa !== ob) return oa - ob;
-        return a.id - b.id;
+    if (!bookId) {
+      const newBook = await createBookUseCase.execute({
+        title: bookInfo.title,
+        short_description: bookInfo.shortDescription || undefined,
+        category_id: bookInfo.categoryId || undefined,
+        is_adult: bookInfo.isAdult,
+        is_draft: true,
       });
-
-      for (let i = 0; i < sortedPages.length; i++) {
-        const page = sortedPages[i];
-        if (page.id < 0) {
-          await bookApi.createPage(realSectionId, {
-            content: stringifyDraftPageContent(page.content),
-            order: i,
-          });
-        } else {
-          await bookApi.updatePage(realSectionId, page.id, {
-            content: stringifyDraftPageContent(page.content),
-            order: page.order ?? i,
-          });
-        }
-      }
-
-      // Sunucuda kalan ama istemcide silinmiş sayfaları kaldır (taslak/yayın kaydı)
-      if (realSectionId > 0) {
-        const keepIds = new Set(
-          sortedPages
-            .map((p) => p.id)
-            .filter((id): id is number => typeof id === 'number' && id > 0)
-        );
-        const listRes = await bookApi.getPages(realSectionId);
-        const rows = listRes.data ?? [];
-        for (const row of rows) {
-          const pid =
-            typeof row === 'object' && row != null && 'id' in row
-              ? Number((row as { id: number }).id)
-              : NaN;
-          if (Number.isFinite(pid) && pid > 0 && !keepIds.has(pid)) {
-            await bookApi.deletePage(realSectionId, pid);
-          }
-        }
-      }
+      bookId = newBook.id;
+      setCurrentBook(newBook);
+      setDraftBookId(newBook.id);
     }
+
+    await saveDraft({ force: true });
+
+    const syncedId =
+      useBookEditorStore.getState().draftBookId
+      ?? useBookEditorStore.getState().currentBook?.id
+      ?? bookId;
+
+    if (!syncedId) {
+      throw new Error('Kitap bulunamadı.');
+    }
+
+    return syncedId;
   };
 
   const handlePublish = async () => {
@@ -207,32 +148,13 @@ export function PublishStep() {
     setError(null);
 
     try {
-      let bookId = currentBook?.id ?? draftBookId ?? undefined;
-
-      // Create book if it doesn't exist
-      if (!bookId) {
-        const newBook = await createBookUseCase.execute({
-          title: bookInfo.title,
-          short_description: bookInfo.shortDescription || undefined,
-          category_id: bookInfo.categoryId || undefined,
-          is_adult: bookInfo.isAdult,
-          is_draft: false,
-        });
-        bookId = newBook.id;
-        setCurrentBook(newBook);
-        setDraftBookId(newBook.id);
+      const bookId = await ensureDraftSynced();
+      await publishBookUseCase.execute(bookId);
+      const prev = useBookEditorStore.getState().currentBook;
+      if (prev) {
+        setCurrentBook(withPublishFlags(prev, true, false));
       }
-
-      // Save sections and pages first
-      if (bookId) {
-        await saveSectionsAndPages(bookId);
-        await publishBookUseCase.execute(bookId);
-        const prev = useBookEditorStore.getState().currentBook;
-        if (prev) {
-          setCurrentBook(withPublishFlags(prev, true, false));
-        }
-        setDraftBookId(bookId);
-      }
+      setDraftBookId(bookId);
 
       setSuccessKind('publish');
       setSuccess(true);

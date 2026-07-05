@@ -261,6 +261,53 @@ test.describe('Book creation wizard (author)', () => {
     await expect(page.getByText('Kalacak Bölüm')).toBeVisible();
   });
 
+  test('publish succeeds after deleting one of two sections', async ({ page, request }) => {
+    const title = uniqueBookTitle();
+    const pageContent = 'Yayın öncesi silinen bölüm testi.';
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await clearBookEditorStorage(page);
+    await page.goto('/dashboard/books/new');
+    await expect(page.getByLabel('Kitap Başlığı *')).toBeVisible({ timeout: 30_000 });
+
+    await completeBookInfoStep(page, title, 'Bölüm silip yayınlama.');
+
+    const sectionInput = page.getByPlaceholder('Bölüm başlığı');
+    await sectionInput.fill('Silinecek');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await sectionInput.fill('Kalacak');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+
+    const doomedRow = page.locator('.group.relative').filter({ hasText: 'Silinecek' });
+    await doomedRow.hover();
+    await doomedRow.locator('button.text-destructive').click();
+    await expect(page.getByText('Bölümler (1)')).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await expect(
+      page.getByText(/Her bölüm için sayfaları oluşturun/)
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Yeni Sayfa' }).click();
+    await expect(page.getByText('Sayfa 1 /')).toBeVisible({ timeout: 20_000 });
+    const editor = page.locator('.ProseMirror').first();
+    await editor.click();
+    await page.keyboard.type(pageContent);
+    await advanceFromWriteStep(page);
+
+    const publishResponse = page.waitForResponse(
+      (r) => r.url().includes('/publish') && r.request().method() === 'POST',
+      { timeout: 60_000 }
+    );
+    await page.getByRole('button', { name: 'Yayınla' }).click();
+    const publishRes = await publishResponse;
+    expect(publishRes.ok()).toBeTruthy();
+
+    await expect(page.getByText(/Başarılı!/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/yayınlandı/i)).toBeVisible();
+  });
+
   test('advancing steps does not duplicate a single section', async ({ page, request }) => {
     const title = uniqueBookTitle();
 
