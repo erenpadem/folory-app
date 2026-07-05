@@ -244,14 +244,16 @@ test.describe('Book creation wizard (author)', () => {
     // Delete second section (trash is visible on row hover).
     const doomedRow = page.locator('.group.relative').filter({ hasText: 'Silinecek Bölüm' });
     await doomedRow.hover();
+    const deleteSave = waitForDraftSave(page);
     await doomedRow.locator('button.text-destructive').click();
+    await deleteSave;
 
     await expect(page.getByText('Bölümler (1)')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Silinecek Bölüm')).toHaveCount(0);
 
-    const savePromise = waitForDraftSave(page);
+    const forwardSave = waitForDraftSave(page);
     await page.getByRole('button', { name: 'İleri' }).click();
-    await savePromise;
+    await forwardSave;
 
     // Go back to sections — deleted section must not reappear from server sync.
     await page.getByRole('button', { name: 'Geri' }).click();
@@ -259,6 +261,53 @@ test.describe('Book creation wizard (author)', () => {
     await expect(page.getByText('Bölümler (1)')).toBeVisible();
     await expect(page.getByText('Silinecek Bölüm')).toHaveCount(0);
     await expect(page.getByText('Kalacak Bölüm')).toBeVisible();
+  });
+
+  test('delete then add new section keeps correct count after autosave', async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueBookTitle();
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await clearBookEditorStorage(page);
+    await page.goto('/dashboard/books/new');
+    await expect(page.getByLabel('Kitap Başlığı *')).toBeVisible({ timeout: 30_000 });
+
+    await completeBookInfoStep(page, title, 'Sil ve yeni ekle.');
+
+    const sectionInput = page.getByPlaceholder('Bölüm başlığı');
+    await sectionInput.fill('Eski');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await sectionInput.fill('Eski 2');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+
+    const row = page.locator('.group.relative').filter({ hasText: /^Eski$/ }).first();
+    await row.hover();
+    const deleteSave = waitForDraftSave(page);
+    await row.locator('button.text-destructive').click();
+    await deleteSave;
+    await expect(page.getByText('Bölümler (1)')).toBeVisible();
+
+    await sectionInput.fill('Yeni Bölüm');
+    const addSave = waitForDraftSave(page);
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await addSave;
+
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+    await expect(page.getByText(/^Eski$/)).toHaveCount(0);
+    await expect(page.getByText('Eski 2')).toBeVisible();
+    await expect(page.getByText('Yeni Bölüm')).toBeVisible();
+
+    const navSave = waitForDraftSave(page);
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await navSave;
+    await page.getByRole('button', { name: 'Geri' }).click();
+
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+    await expect(page.getByText(/^Eski$/)).toHaveCount(0);
+    await expect(page.getByText('Yeni Bölüm')).toBeVisible();
   });
 
   test('publish succeeds after deleting one of two sections', async ({ page, request }) => {
@@ -281,7 +330,9 @@ test.describe('Book creation wizard (author)', () => {
 
     const doomedRow = page.locator('.group.relative').filter({ hasText: 'Silinecek' });
     await doomedRow.hover();
+    const deleteSave = waitForDraftSave(page);
     await doomedRow.locator('button.text-destructive').click();
+    await deleteSave;
     await expect(page.getByText('Bölümler (1)')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: 'İleri' }).click();

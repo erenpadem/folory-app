@@ -8,10 +8,19 @@ vi.mock('@/shared/lib/api-client', () => ({
   },
 }));
 
-import { PageEntity, SectionEntity } from '@/features/books';
-import { useBookEditorStore } from './book-editor.store';
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: {
+    getState: () => ({
+      user: { role: 'author' },
+      setUser: vi.fn(),
+    }),
+  },
+}));
 
-function minimalDraftResponse(id: number) {
+import { PageEntity, SectionEntity } from '@/features/books';
+import { useBookEditorStore, resetBookEditorSaveDraftChainForTests } from './book-editor.store';
+
+function minimalDraftResponse(id: number, sections: unknown[] = []) {
   return {
     data: {
       success: true,
@@ -29,20 +38,23 @@ function minimalDraftResponse(id: number) {
         is_published: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        sections: [],
+        sections,
       },
     },
   };
 }
 
 describe('useBookEditorStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
     useBookEditorStore.persist.clearStorage();
+    resetBookEditorSaveDraftChainForTests();
     useBookEditorStore.getState().reset();
     postMock.mockReset();
-    postMock.mockResolvedValue(minimalDraftResponse(42));
+    postMock.mockImplementation(() => Promise.resolve(minimalDraftResponse(42)));
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    await new Promise((r) => setTimeout(r, 0));
+    postMock.mockReset();
   });
 
   it('validateStep 1 requires non-empty title', () => {
@@ -109,6 +121,7 @@ describe('useBookEditorStore', () => {
   });
 
   it('canProceedToNextStep reflects validateStep for current step', () => {
+    useBookEditorStore.getState().reset();
     const s = useBookEditorStore.getState();
     expect(s.currentStep).toBe(1);
     expect(s.canProceedToNextStep()).toBe(false);
@@ -138,24 +151,27 @@ describe('useBookEditorStore', () => {
   });
 
   it('saveDraft marks local sync when offline', async () => {
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    resetBookEditorSaveDraftChainForTests();
+    const onLineSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    postMock.mockClear();
     useBookEditorStore.getState().updateBookInfo({ title: 'Kitap' });
     await useBookEditorStore.getState().saveDraft();
     expect(useBookEditorStore.getState().pendingServerSync).toBe(true);
     expect(useBookEditorStore.getState().lastLocalSavedAt).toBeInstanceOf(Date);
     expect(postMock).not.toHaveBeenCalled();
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    onLineSpy.mockRestore();
   });
 
   it('saveDraft POST includes sections with nested pages matching wizard content', async () => {
     const s = useBookEditorStore.getState();
     const now = new Date();
     s.updateBookInfo({ title: 'Taslak Kitap', categoryId: 2 });
-    s.addSection(new SectionEntity(-5, 0, 'B1', 0, 0, true, now, now, []));
-    s.addPage(
-      -5,
-      new PageEntity(-6, -5, '<p>hello</p>', 0, now, now)
-    );
+    useBookEditorStore.setState({
+      sections: [new SectionEntity(-5, 0, 'B1', 0, 0, true, now, now, [])],
+      pages: {
+        [-5]: [new PageEntity(-6, -5, '<p>hello</p>', 0, now, now)],
+      },
+    });
     await s.saveDraft({ force: true });
     expect(postMock).toHaveBeenCalled();
     const payload = postMock.mock.calls[0]?.[1] as {
@@ -170,14 +186,171 @@ describe('useBookEditorStore', () => {
     const s = useBookEditorStore.getState();
     const now = new Date();
     s.updateBookInfo({ title: 'İmza', categoryId: 1 });
-    s.addSection(new SectionEntity(-1, 0, 'S', 0, 0, true, now, now, []));
-    s.addPage(-1, new PageEntity(-2, -1, '<p>a</p>', 0, now, now));
+    s.setDraftBookId(42);
+    useBookEditorStore.setState({
+      sections: [new SectionEntity(-1, 0, 'S', 0, 0, true, now, now, [])],
+      pages: {
+        [-1]: [new PageEntity(-2, -1, '<p>a</p>', 0, now, now)],
+      },
+      lastSyncedDraftFingerprint: null,
+    });
+    postMock.mockImplementationOnce(() =>
+      Promise.resolve(
+        minimalDraftResponse(42, [
+          {
+            id: 7,
+            book_id: 42,
+            title: 'S',
+            order: 0,
+            total_page: 1,
+            is_visible: true,
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+            pages: [
+              {
+                id: 8,
+                section_id: 7,
+                content: '<p>a</p>',
+                order: 0,
+                created_at: now.toISOString(),
+                updated_at: now.toISOString(),
+              },
+            ],
+          },
+        ])
+      )
+    );
     await s.saveDraft({ force: true });
     expect(postMock).toHaveBeenCalledTimes(1);
+    const synced = useBookEditorStore.getState();
+    expect(synced.lastSyncedDraftFingerprint).toBeTruthy();
+    expect(synced.sections).toHaveLength(1);
     postMock.mockClear();
     await s.saveDraft();
     expect(postMock).not.toHaveBeenCalled();
     await s.saveDraft({ force: true });
     expect(postMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('saveDraft does not restore zombie sections omitted from client payload', async () => {
+    const now = new Date();
+    const s = useBookEditorStore.getState();
+    s.updateBookInfo({ title: 'Zombie test', categoryId: 1 });
+    s.setDraftBookId(99);
+    s.addSection(new SectionEntity(6, 99, 'Kalacak', 0, 0, true, now, now, []));
+
+    postMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          id: 99,
+          author_id: 1,
+          category_id: 1,
+          title: 'Zombie test',
+          short_description: null,
+          cover: null,
+          read_count: 0,
+          total_page: 0,
+          is_adult: false,
+          is_draft: true,
+          is_published: false,
+          created_at: now.toISOString(),
+          updated_at: now.toISOString(),
+          sections: [
+            {
+              id: 5,
+              book_id: 99,
+              title: 'Silinecek',
+              order: 0,
+              total_page: 0,
+              is_visible: true,
+              created_at: now.toISOString(),
+              updated_at: now.toISOString(),
+              pages: [],
+            },
+            {
+              id: 6,
+              book_id: 99,
+              title: 'Kalacak',
+              order: 1,
+              total_page: 0,
+              is_visible: true,
+              created_at: now.toISOString(),
+              updated_at: now.toISOString(),
+              pages: [],
+            },
+          ],
+        },
+      },
+    });
+
+    await s.saveDraft({ force: true });
+
+    const after = useBookEditorStore.getState();
+    expect(after.sections).toHaveLength(1);
+    expect(after.sections[0]!.id).toBe(6);
+    expect(after.sections[0]!.title).toBe('Kalacak');
+  });
+
+  it('deleteSection triggers save and keeps single section after server sync', async () => {
+    const now = new Date();
+    const s = useBookEditorStore.getState();
+    s.updateBookInfo({ title: 'Silme', categoryId: 1 });
+    s.setDraftBookId(100);
+    s.addSection(new SectionEntity(10, 100, 'Silinecek', 0, 0, true, now, now, []));
+    s.addSection(new SectionEntity(11, 100, 'Kalacak', 1, 0, true, now, now, []));
+
+    postMock.mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          id: 100,
+          author_id: 1,
+          category_id: 1,
+          title: 'Silme',
+          short_description: null,
+          cover: null,
+          read_count: 0,
+          total_page: 0,
+          is_adult: false,
+          is_draft: true,
+          is_published: false,
+          created_at: now.toISOString(),
+          updated_at: now.toISOString(),
+          sections: [
+            {
+              id: 10,
+              book_id: 100,
+              title: 'Silinecek',
+              order: 0,
+              total_page: 0,
+              is_visible: true,
+              created_at: now.toISOString(),
+              updated_at: now.toISOString(),
+              pages: [],
+            },
+            {
+              id: 11,
+              book_id: 100,
+              title: 'Kalacak',
+              order: 1,
+              total_page: 0,
+              is_visible: true,
+              created_at: now.toISOString(),
+              updated_at: now.toISOString(),
+              pages: [],
+            },
+          ],
+        },
+      },
+    });
+
+    s.deleteSection(10);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const after = useBookEditorStore.getState();
+    expect(after.sections).toHaveLength(1);
+    expect(after.sections[0]!.title).toBe('Kalacak');
+    expect(after.sections.some((sec) => sec.title === 'Silinecek')).toBe(false);
   });
 });

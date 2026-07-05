@@ -5,7 +5,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { BookEntity, SectionEntity, PageEntity } from '@/features/books';
+import api from '@/shared/lib/api-client';
 import { getWizardSectionPages } from '../utils/wizard-section-pages';
+import {
+  buildPagesRecordFromSections,
+  mergeSectionsAfterDraftSave,
+  prunePagesMapToSections,
+  remapClientSectionIdsFromServer,
+} from '../utils/book-editor-draft-sync';
 
 interface BookEditorState {
   // Current step in wizard
@@ -115,7 +122,7 @@ function getDraftSyncPayload(state: BookEditorState) {
     cover: state.bookInfo.cover || undefined,
     category_id: state.bookInfo.categoryId || undefined,
     is_adult: state.bookInfo.isAdult,
-    sections: sectionsData.length > 0 ? sectionsData : undefined,
+    sections: sectionsData,
   };
 }
 
@@ -144,13 +151,14 @@ async function ensureCanWriteBooks(): Promise<void> {
  * Seçimi order (ve gerekirse sıra indeksi) ile yeni id'lere taşır.
  */
 function buildPagesRecordFromBook(book: BookEntity): Record<number, PageEntity[]> {
-  return book.sections.reduce((acc, section) => {
-    const list = (section.pages ?? []).filter((p) => p != null);
-    if (list.length > 0) {
-      acc[section.id] = list;
-    }
-    return acc;
-  }, {} as Record<number, PageEntity[]>);
+  return buildPagesRecordFromSections(book.sections);
+}
+
+function bookEntityWithSections(book: BookEntity, sections: SectionEntity[]): BookEntity {
+  return BookEntity.fromPrimitives({
+    ...book.toPrimitives(),
+    sections: sections.map((s) => s.toPrimitives()),
+  });
 }
 
 function bookInfoFromEntity(book: BookEntity): BookEditorState['bookInfo'] {
@@ -276,6 +284,11 @@ function restoreActiveSelectionAfterMerge(
 /** Paralel saveDraft çağrıları (İleri + autosave) negatif id ile çift bölüm oluşturmasın. */
 let saveDraftChain: Promise<void> = Promise.resolve();
 
+/** @internal Vitest: kuyruk sıfırlama */
+export function resetBookEditorSaveDraftChainForTests(): void {
+  saveDraftChain = Promise.resolve();
+}
+
 const initialState: BookEditorState = {
   currentStep: 1,
   bookInfo: {
@@ -329,17 +342,25 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
       bookInfo: { ...state.bookInfo, ...info },
     })),
 
-  addSection: (section) =>
+  addSection: (section) => {
     set((state) => ({
       sections: [...state.sections, section],
       activeSectionId: section.id,
-    })),
+      pendingServerSync: true,
+      lastSyncedDraftFingerprint: null,
+    }));
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   updateSection: (id, section) =>
     set((state) => ({
       sections: state.sections.map((s) =>
         s.id === id ? section : s
       ),
+      pendingServerSync: true,
+      lastSyncedDraftFingerprint: null,
     })),
 
   deleteSection: (id) => {
@@ -352,6 +373,7 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
         pages: newPages,
         activeSectionId: state.activeSectionId === id ? null : state.activeSectionId,
         pendingServerSync: true,
+        lastSyncedDraftFingerprint: null,
       };
     });
     queueMicrotask(() => {
@@ -361,7 +383,7 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
 
   setActiveSection: (id) => set({ activeSectionId: id }),
 
-  reorderSections: (sectionOrders) =>
+  reorderSections: (sectionOrders) => {
     set((state) => {
       const orderMap = new Map(sectionOrders.map((so) => [so.id, so.order]));
       const sortedSections = [...state.sections].sort((a, b) => {
@@ -384,8 +406,14 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
             s.pages
           );
         }),
+        pendingServerSync: true,
+        lastSyncedDraftFingerprint: null,
       };
-    }),
+    });
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   addPage: (sectionId, page) =>
     set((state) => ({
@@ -525,14 +553,24 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
         return;
       }
 
-      const api = (await import('@/shared/lib/api-client')).default;
-      const payload = getDraftSyncPayload(state);
+      const stateAtRequest = state;
+      const requestFingerprint = fingerprint;
+      const payload = getDraftSyncPayload(stateAtRequest);
 
       const url = state.draftBookId 
         ? `/books/draft/${state.draftBookId}`
         : '/books/draft';
 
       const response = await api.post(url, payload);
+
+      if (!response?.data?.success || !response?.data?.data) {
+        set({
+          isSaving: false,
+          lastLocalSavedAt: new Date(),
+          pendingServerSync: true,
+        });
+        return;
+      }
       
       if (response.data.success && response.data.data) {
         const bookData = response.data.data;
@@ -548,47 +586,92 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
           pendingServerSync: false,
           isSaving: false,
         };
-        if (nextBook && nextBook.sections.length > 0) {
-          const beforeSync = get();
-          const remapped = remapActiveIdsAfterServerSync(beforeSync, nextBook);
-          const pagesFromServer = buildPagesRecordFromBook(nextBook);
-          const pagesMap = mergeClientPendingPagesIntoServerPages(
-            beforeSync,
-            pagesFromServer,
-            nextBook
-          );
-          const { activeSectionId, activePageId } = restoreActiveSelectionAfterMerge(
-            beforeSync,
-            pagesMap,
-            nextBook,
-            remapped
-          );
-          const bookInfo = bookInfoFromEntity(nextBook);
-          const lastSyncedDraftFingerprint = computeDraftFingerprint({
-            ...beforeSync,
-            currentBook: nextBook,
-            draftBookId: nextBook.id,
-            bookInfo,
-            sections: nextBook.sections,
-            pages: pagesMap,
-            activeSectionId,
-            activePageId,
-          } as BookEditorState);
-          set({
-            currentBook: nextBook,
-            draftBookId: nextBook.id,
-            bookInfo,
-            sections: nextBook.sections,
-            pages: pagesMap,
-            activeSectionId,
-            activePageId,
-            ...syncMeta,
-            lastSyncedDraftFingerprint,
-          });
+        if (nextBook) {
+          const stateNow = get();
+          const clientChangedDuringSave =
+            computeDraftFingerprint(stateNow) !== requestFingerprint;
+
+          const mergedSections = clientChangedDuringSave
+            ? remapClientSectionIdsFromServer(
+                stateNow.sections,
+                payload.sections,
+                nextBook
+              )
+            : mergeSectionsAfterDraftSave(
+                payload.sections,
+                stateAtRequest.sections,
+                nextBook
+              );
+
+          const resolvedSections =
+            mergedSections.length === 0 && payload.sections.length > 0
+              ? clientChangedDuringSave
+                ? stateNow.sections
+                : stateAtRequest.sections
+              : mergedSections;
+
+          const mergeBase = clientChangedDuringSave ? stateNow : stateAtRequest;
+          const bookForMerge = bookEntityWithSections(nextBook, resolvedSections);
+
+          if (resolvedSections.length > 0) {
+            const remapped = remapActiveIdsAfterServerSync(mergeBase, bookForMerge);
+            const pagesFromServer = buildPagesRecordFromSections(resolvedSections);
+            const pagesMap = mergeClientPendingPagesIntoServerPages(
+              mergeBase,
+              pagesFromServer,
+              bookForMerge
+            );
+            const prunedPages = prunePagesMapToSections(pagesMap, resolvedSections);
+            const { activeSectionId, activePageId } = restoreActiveSelectionAfterMerge(
+              mergeBase,
+              prunedPages,
+              bookForMerge,
+              remapped
+            );
+            const bookInfo = bookInfoFromEntity(nextBook);
+            const lastSyncedDraftFingerprint = computeDraftFingerprint({
+              ...mergeBase,
+              currentBook: bookForMerge,
+              draftBookId: nextBook.id,
+              bookInfo,
+              sections: resolvedSections,
+              pages: prunedPages,
+              activeSectionId,
+              activePageId,
+            } as BookEditorState);
+            set({
+              currentBook: bookForMerge,
+              draftBookId: nextBook.id,
+              bookInfo,
+              sections: resolvedSections,
+              pages: prunedPages,
+              activeSectionId,
+              activePageId,
+              ...syncMeta,
+              lastSyncedDraftFingerprint,
+            });
+          } else {
+            const bookInfo = bookInfoFromEntity(nextBook);
+            set({
+              draftBookId: nextBook.id,
+              currentBook: bookForMerge,
+              bookInfo,
+              sections: [],
+              pages: {},
+              activeSectionId: null,
+              activePageId: null,
+              ...syncMeta,
+              lastSyncedDraftFingerprint: computeDraftFingerprint({
+                ...mergeBase,
+                sections: [],
+                pages: {},
+                draftBookId: nextBook.id,
+                bookInfo,
+              } as BookEditorState),
+            });
+          }
         } else {
           set({
-            draftBookId: bookData.id,
-            currentBook: nextBook,
             ...syncMeta,
             lastSyncedDraftFingerprint: computeDraftFingerprint(get()),
           });

@@ -284,6 +284,39 @@ class BookApiTest extends TestCase
         $response->assertJsonCount(1, 'data.sections');
     }
 
+    public function test_save_draft_empty_sections_array_prunes_all_sections(): void
+    {
+        $author = $this->actingAuthor();
+        $category = Category::factory()->create();
+        $book = Book::factory()->draft()->create([
+            'author_id' => $author->id,
+            'category_id' => $category->id,
+            'title' => 'Boş bölüm '.uniqid(),
+        ]);
+        $section = Section::factory()->create([
+            'book_id' => $book->id,
+            'title' => 'Tek',
+            'order' => 0,
+        ]);
+        Page::factory()->create([
+            'section_id' => $section->id,
+            'content' => '<p>x</p>',
+            'order' => 0,
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $response = $this->postJson('/api/books/draft/'.$book->id, [
+            'title' => $book->title,
+            'category_id' => $category->id,
+            'sections' => [],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseMissing('sections', ['id' => $section->id]);
+        $response->assertJsonCount(0, 'data.sections');
+    }
+
     public function test_non_owner_cannot_update_or_delete_book(): void
     {
         $owner = $this->actingAuthor();
