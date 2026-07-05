@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/shared/lib/api-client';
 import { BookEntity } from '@/features/books';
 import { clearWizardWriteContextParams } from '@/features/books/presentation/utils/wizard-write-url';
+import { resetBookEditorForBookSwitch } from '@/features/books/presentation/utils/book-editor-storage';
 import { cn } from '@/lib/utils';
 
 export default function UpdateBookPage() {
@@ -39,11 +40,24 @@ export default function UpdateBookPage() {
     setDraftBookId,
   } = useBookEditorStore();
   const [dominantColor, setDominantColor] = useState<string | null>(null);
+  /** Persist rehydrate tamamlanmadan sunucu verisi yazılmasın (sıra ters olursa eski taslak geri gelir). */
+  const [storeReady, setStoreReady] = useState(false);
   /** Aynı kitap için adımı URL / içerikten yalnızca ilk yüklemede ayarla (refetch’te sıçrama olmasın). */
   const stepInitForSlugRef = useRef<string | null>(null);
+  /** React Query refetch (odak, invalidate) yerel düzenlemeyi ezmesin — kitap yalnızca ilk fetch’te yüklenir. */
+  const bookLoadedForSlugRef = useRef<string | null>(null);
+  /** Yanlış kitap verisiyle autosave POST etmesin — loadBook sonrası açılır. */
+  const [editorReady, setEditorReady] = useState(false);
 
-  // Enable autosave
-  useAutoSave();
+  useAutoSave({ enabled: editorReady });
+
+  useEffect(() => {
+    if (useBookEditorStore.persist.hasHydrated()) {
+      setStoreReady(true);
+      return;
+    }
+    return useBookEditorStore.persist.onFinishHydration(() => setStoreReady(true));
+  }, []);
 
   // Load book data
   const { data: bookData, isLoading } = useQuery({
@@ -54,20 +68,30 @@ export default function UpdateBookPage() {
       const response = await api.get(endpoint);
       return response.data;
     },
-    enabled: !!slugOrId,
+    enabled: !!slugOrId && storeReady,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
+    setEditorReady(false);
     stepInitForSlugRef.current = null;
+    bookLoadedForSlugRef.current = null;
+    resetBookEditorForBookSwitch();
   }, [slugOrId]);
 
   // Load book; adım: ?step= yoksa sunucudaki içeriğe göre ilk eksik sihirbaz adımı
   useEffect(() => {
-    if (!bookData?.data) return;
+    if (!storeReady || !bookData?.data) return;
     const book = bookData.data;
     const bookEntity = BookEntity.fromPrimitives(book);
-    loadBook(bookEntity);
-    setDraftBookId(book.id);
+
+    const firstBookLoad = bookLoadedForSlugRef.current !== slugOrId;
+    if (firstBookLoad) {
+      loadBook(bookEntity);
+      setDraftBookId(book.id);
+      bookLoadedForSlugRef.current = slugOrId;
+      setEditorReady(true);
+    }
 
     if (typeof window === 'undefined') return;
 
@@ -90,7 +114,7 @@ export default function UpdateBookPage() {
     const url = new URL(window.location.href);
     url.searchParams.set('step', String(resume));
     router.replace(url.pathname + url.search, { scroll: false });
-  }, [bookData, loadBook, setDraftBookId, setCurrentStep, router, slugOrId]);
+  }, [bookData, loadBook, setDraftBookId, setCurrentStep, router, slugOrId, storeReady]);
 
   useEffect(() => {
     if (bookInfo.cover) {
@@ -127,6 +151,9 @@ export default function UpdateBookPage() {
             clearWizardWriteContextParams(url);
           }
           router.replace(url.pathname + url.search, { scroll: false });
+        }
+        if (bookInfo.title.trim()) {
+          void useBookEditorStore.getState().saveDraft();
         }
       }
     }
@@ -181,7 +208,7 @@ export default function UpdateBookPage() {
     }
   };
 
-  if (isLoading) {
+  if (!storeReady || isLoading || !editorReady) {
     return (
       <div className="container mx-auto py-8 max-w-5xl px-4">
         <div className="text-center py-12">

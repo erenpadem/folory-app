@@ -347,11 +347,13 @@ class BookController extends Controller
                     $this->mergeDraftSavePayload($data, $id)
                 );
             } else {
-                // If a draft already exists for same author+title, update it instead of creating new
+                // Only reuse an existing *draft* row — never hijack a published book by title match
                 $existingDraft = null;
-                if (!empty($data['title'])) {
+                if (! empty($data['title'])) {
                     $existingDraft = \App\Models\Book::where('author_id', $userId)
                         ->where('title', $data['title'])
+                        ->where('is_draft', true)
+                        ->where('is_published', false)
                         ->first();
                 }
 
@@ -363,6 +365,19 @@ class BookController extends Controller
                         $this->mergeDraftSavePayload($data, $id)
                     );
                 } else {
+                    if (! empty($data['title'])) {
+                        $publishedWithTitle = \App\Models\Book::where('author_id', $userId)
+                            ->where('title', $data['title'])
+                            ->where('is_published', true)
+                            ->exists();
+                        if ($publishedWithTitle) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Bu başlıkta yayınlanmış bir kitabınız zaten var. Farklı bir başlık kullanın veya mevcut kitabı düzenleyin.',
+                            ], 422);
+                        }
+                    }
+
                     $data['author_id'] = $userId;
                     $data['is_draft'] = true;
                     $data['is_published'] = false;
@@ -373,6 +388,9 @@ class BookController extends Controller
 
             // Save sections and pages if provided
             if (isset($data['sections']) && is_array($data['sections'])) {
+                $bookModel = \App\Models\Book::find($id);
+                $isPublished = $bookModel && $bookModel->is_published;
+
                 /** @var int[] $survivingSectionIds Payload’taki her bölümden sonra kalan bölüm id’leri */
                 $survivingSectionIds = [];
 
@@ -476,6 +494,9 @@ class BookController extends Controller
                             ->where('section_id', $sectionId);
                         if ($survivingPageIds !== []) {
                             $orphanQuery->whereNotIn('id', $survivingPageIds);
+                        } elseif ($isPublished) {
+                            // Never wipe all pages of a published section from an empty pages payload (race / partial save)
+                            $orphanQuery->whereRaw('1 = 0');
                         }
                         foreach ($orphanQuery->pluck('id') as $orphanId) {
                             $this->deletePageUseCase->execute((int) $orphanId);
@@ -484,12 +505,14 @@ class BookController extends Controller
                 }
 
                 // Client removed sections locally: drop rows not produced by this payload pass
-                $orphanSectionQuery = \App\Models\Section::query()->where('book_id', $id);
-                if ($survivingSectionIds !== []) {
-                    $orphanSectionQuery->whereNotIn('id', $survivingSectionIds);
-                }
-                foreach ($orphanSectionQuery->pluck('id') as $orphanSectionId) {
-                    $this->deleteSectionUseCase->execute((int) $orphanSectionId);
+                if ($survivingSectionIds !== [] || ! $isPublished) {
+                    $orphanSectionQuery = \App\Models\Section::query()->where('book_id', $id);
+                    if ($survivingSectionIds !== []) {
+                        $orphanSectionQuery->whereNotIn('id', $survivingSectionIds);
+                    }
+                    foreach ($orphanSectionQuery->pluck('id') as $orphanSectionId) {
+                        $this->deleteSectionUseCase->execute((int) $orphanSectionId);
+                    }
                 }
             }
 

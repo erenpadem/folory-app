@@ -13,6 +13,7 @@ import {
   prunePagesMapToSections,
   remapClientSectionIdsFromServer,
 } from '../utils/book-editor-draft-sync';
+import { queryClient } from '@/shared/lib/query-client';
 
 interface BookEditorState {
   // Current step in wizard
@@ -340,6 +341,8 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
   updateBookInfo: (info) =>
     set((state) => ({
       bookInfo: { ...state.bookInfo, ...info },
+      pendingServerSync: true,
+      lastSyncedDraftFingerprint: null,
     })),
 
   addSection: (section) => {
@@ -354,14 +357,18 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
     });
   },
 
-  updateSection: (id, section) =>
+  updateSection: (id, section) => {
     set((state) => ({
       sections: state.sections.map((s) =>
         s.id === id ? section : s
       ),
       pendingServerSync: true,
       lastSyncedDraftFingerprint: null,
-    })),
+    }));
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   deleteSection: (id) => {
     set((state) => {
@@ -415,14 +422,20 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
     });
   },
 
-  addPage: (sectionId, page) =>
+  addPage: (sectionId, page) => {
     set((state) => ({
       pages: {
         ...state.pages,
         [sectionId]: [...(state.pages[sectionId] || []), page],
       },
       activePageId: page.id,
-    })),
+      pendingServerSync: true,
+      lastSyncedDraftFingerprint: null,
+    }));
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   updatePage: (sectionId, pageId, page) =>
     set((state) => ({
@@ -432,9 +445,11 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
           p.id === pageId ? page : p
         ),
       },
+      pendingServerSync: true,
+      lastSyncedDraftFingerprint: null,
     })),
 
-  deletePage: (sectionId, pageId) =>
+  deletePage: (sectionId, pageId) => {
     set((state) => {
       const nextForSection = (state.pages[sectionId] || []).filter((p) => p.id !== pageId);
       const pages = { ...state.pages };
@@ -462,8 +477,14 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
         pages,
         sections,
         activePageId: state.activePageId === pageId ? null : state.activePageId,
+        pendingServerSync: true,
+        lastSyncedDraftFingerprint: null,
       };
-    }),
+    });
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   setActivePage: (id) => set({ activePageId: id }),
 
@@ -511,6 +532,9 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
       bookInfo,
       sections: book.sections,
       pages: pagesMap,
+      activeSectionId: null,
+      activePageId: null,
+      pendingServerSync: false,
       lastSyncedDraftFingerprint: nextFingerprint,
     });
   },
@@ -557,7 +581,17 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
       const requestFingerprint = fingerprint;
       const payload = getDraftSyncPayload(stateAtRequest);
 
-      const url = state.draftBookId 
+      // Defense in depth: never send empty sections payload for a published book
+      if (
+        stateAtRequest.draftBookId &&
+        payload.sections.length === 0 &&
+        stateAtRequest.currentBook?.isPublished
+      ) {
+        set({ isSaving: false, pendingServerSync: true });
+        return;
+      }
+
+      const url = state.draftBookId
         ? `/books/draft/${state.draftBookId}`
         : '/books/draft';
 
@@ -650,6 +684,9 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
               ...syncMeta,
               lastSyncedDraftFingerprint,
             });
+            if (nextBook.isPublished) {
+              void queryClient.invalidateQueries({ queryKey: ['book'] });
+            }
           } else {
             const bookInfo = bookInfoFromEntity(nextBook);
             set({
@@ -669,6 +706,9 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
                 bookInfo,
               } as BookEditorState),
             });
+            if (nextBook.isPublished) {
+              void queryClient.invalidateQueries({ queryKey: ['book'] });
+            }
           }
         } else {
           set({

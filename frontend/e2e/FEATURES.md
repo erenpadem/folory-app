@@ -18,6 +18,8 @@ Status: **covered** | **partial** | **missing** | **n/a** (no UI yet)
 | Reader | Reading settings panel | `reader-settings.spec.ts` | covered |
 | Reader | Page notes UI | — | n/a (API only) |
 | Author | Wizard publish/draft/section delete | `book-wizard.spec.ts` | covered |
+| Author | Published book edit (info/section/page) | `book-edit-published.spec.ts` | covered |
+| Author | Production guards (title collision, empty-section prune) | `BookApiTest.php` | covered |
 | Author | Dashboard books filter/delete/edit | `author-dashboard.spec.ts` | covered |
 | Author | Dashboard tabs (Yorumlar/Puanlar) | `author-dashboard.spec.ts` | covered |
 | Profile | Settings name/bio, avatar, cover | `profile-settings.spec.ts` | covered |

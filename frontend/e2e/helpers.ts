@@ -288,6 +288,86 @@ export async function apiDeleteBook(
   expect(res.ok(), `Delete book ${bookId} failed: ${res.status()}`).toBeTruthy();
 }
 
+/** Publishes a draft book (requires at least one section and page). */
+export async function apiPublishBook(
+  request: APIRequestContext,
+  token: string,
+  bookIdOrSlug: number | string
+): Promise<void> {
+  const res = await request.post(`${API_BASE}/api/books/${bookIdOrSlug}/publish`, {
+    headers: authHeaders(token),
+  });
+  expect(res.ok(), `Publish failed: ${await res.text()}`).toBeTruthy();
+}
+
+/** Fetches full book detail (sections/pages when included by API). */
+export async function apiGetBook(
+  request: APIRequestContext,
+  token: string | null,
+  slugOrId: string | number
+): Promise<Record<string, unknown>> {
+  const headers = token ? authHeaders(token) : { Accept: 'application/json' };
+  const res = await request.get(`${API_BASE}/api/books/${slugOrId}`, { headers });
+  expect(res.ok(), `GET book ${slugOrId} failed: ${res.status()}`).toBeTruthy();
+  const body = await res.json();
+  return body.data as Record<string, unknown>;
+}
+
+/** Creates a published book with two sections (each with one page) for edit-flow tests. */
+export async function apiCreatePublishedBookWithTwoSections(
+  request: APIRequestContext,
+  token: string,
+  title: string
+): Promise<{
+  id: number;
+  slug: string;
+  sectionIds: [number, number];
+  pageIds: [number, number];
+}> {
+  let categoryId: number | undefined;
+  const catRes = await request.get(`${API_BASE}/api/categories`, {
+    headers: authHeaders(token),
+  });
+  expect(catRes.ok()).toBeTruthy();
+  const cats = (await catRes.json()).data ?? [];
+  categoryId = cats[0]?.id;
+  expect(categoryId, 'Need at least one category seeded').toBeTruthy();
+
+  const res = await request.post(`${API_BASE}/api/books/draft`, {
+    headers: authHeaders(token),
+    data: {
+      title,
+      category_id: categoryId,
+      short_description: 'E2E yayın sonrası düzenleme',
+      sections: [
+        {
+          title: 'Bölüm A',
+          order: 0,
+          is_visible: true,
+          pages: [{ content: '<p>Sayfa A</p>', order: 0 }],
+        },
+        {
+          title: 'Bölüm B',
+          order: 1,
+          is_visible: true,
+          pages: [{ content: '<p>Sayfa B</p>', order: 0 }],
+        },
+      ],
+    },
+  });
+  expect(res.ok(), `Draft create failed: ${await res.text()}`).toBeTruthy();
+  const book = (await res.json()).data;
+  const s0 = book.sections[0];
+  const s1 = book.sections[1];
+  await apiPublishBook(request, token, book.id);
+  return {
+    id: book.id,
+    slug: book.slug || String(book.id),
+    sectionIds: [s0.id, s1.id],
+    pageIds: [s0.pages[0].id, s1.pages[0].id],
+  };
+}
+
 export async function apiBecomeAuthor(
   request: APIRequestContext,
   token: string

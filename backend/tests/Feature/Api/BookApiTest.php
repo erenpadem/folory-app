@@ -317,6 +317,84 @@ class BookApiTest extends TestCase
         $response->assertJsonCount(0, 'data.sections');
     }
 
+    public function test_save_draft_empty_sections_does_not_wipe_published_book(): void
+    {
+        $author = $this->actingAuthor();
+        $category = Category::factory()->create();
+        $book = Book::factory()->published()->create([
+            'author_id' => $author->id,
+            'category_id' => $category->id,
+            'title' => 'Yayında koruma '.uniqid(),
+        ]);
+        $section = Section::factory()->create([
+            'book_id' => $book->id,
+            'title' => 'Korunan bölüm',
+            'order' => 0,
+        ]);
+        Page::factory()->create([
+            'section_id' => $section->id,
+            'content' => '<p>koru</p>',
+            'order' => 0,
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $response = $this->postJson('/api/books/draft/'.$book->id, [
+            'title' => $book->title,
+            'category_id' => $category->id,
+            'sections' => [],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseHas('sections', ['id' => $section->id]);
+        $response->assertJsonCount(1, 'data.sections');
+    }
+
+    public function test_save_draft_without_id_does_not_hijack_published_book_with_same_title(): void
+    {
+        $author = $this->actingAuthor();
+        $category = Category::factory()->create();
+        $title = 'Aynı başlık '.uniqid();
+        $published = Book::factory()->published()->create([
+            'author_id' => $author->id,
+            'category_id' => $category->id,
+            'title' => $title,
+        ]);
+        $section = Section::factory()->create([
+            'book_id' => $published->id,
+            'title' => 'Orijinal',
+            'order' => 0,
+        ]);
+        Page::factory()->create([
+            'section_id' => $section->id,
+            'content' => '<p>orijinal</p>',
+            'order' => 0,
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $response = $this->postJson('/api/books/draft', [
+            'title' => $title,
+            'category_id' => $category->id,
+            'short_description' => 'Yeni sihirbaz denemesi',
+            'sections' => [
+                [
+                    'title' => 'Yeni bölüm',
+                    'order' => 0,
+                    'is_visible' => true,
+                    'pages' => [
+                        ['content' => '<p>yeni</p>', 'order' => 0],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422)->assertJsonPath('success', false);
+        $this->assertDatabaseHas('sections', ['id' => $section->id, 'title' => 'Orijinal']);
+        $this->assertDatabaseHas('books', ['id' => $published->id, 'title' => $title, 'is_published' => true]);
+        $this->assertDatabaseCount('books', 1);
+    }
+
     public function test_non_owner_cannot_update_or_delete_book(): void
     {
         $owner = $this->actingAuthor();

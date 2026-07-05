@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useBookEditorStore } from '../../stores/book-editor.store';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,10 @@ export function BookInfoStep() {
   const { bookInfo, updateBookInfo } = useBookEditorStore();
   const [coverPreview, setCoverPreview] = useState<string | null>(bookInfo.cover);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCoverPreview(bookInfo.cover);
+  }, [bookInfo.cover]);
 
   const { data: categories } = useQuery<{ data: Category[] }>({
     queryKey: ['categories'],

@@ -385,4 +385,96 @@ test.describe('Book creation wizard (author)', () => {
     await expect(page.getByText('Bölümler (1)')).toBeVisible();
     await expect(page.getByText('Tek Bölüm')).toHaveCount(1);
   });
+
+  test('published book edit: deleted section stays deleted after navigation', async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueBookTitle();
+    const pageContent = 'Yayın sonrası bölüm silme testi.';
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await clearBookEditorStorage(page);
+    await page.goto('/dashboard/books/new');
+    await expect(page.getByLabel('Kitap Başlığı *')).toBeVisible({ timeout: 30_000 });
+
+    await completeBookInfoStep(page, title, 'Yayın sonrası düzenlemede bölüm silme.');
+
+    const sectionInput = page.getByPlaceholder('Bölüm başlığı');
+    await sectionInput.fill('Kalacak');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await sectionInput.fill('Silinecek');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await expect(
+      page.getByText(/Her bölüm için sayfaları oluşturun/)
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Yeni Sayfa' }).click();
+    await expect(page.getByText('Sayfa 1 /')).toBeVisible({ timeout: 20_000 });
+    const editor = page.locator('.ProseMirror').first();
+    await editor.click();
+    await page.keyboard.type(pageContent);
+    await page.getByRole('button', { name: 'Kaydet' }).click();
+    await page.getByRole('button', { name: 'Sayfalar' }).click();
+    await expect(
+      page.getByText(/Her bölüm için sayfaları oluşturun/)
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('combobox').click();
+    await page.getByRole('option', { name: /Silinecek/ }).click();
+    await page.getByRole('button', { name: 'Yeni Sayfa' }).click();
+    await expect(page.getByText('Sayfa 1 /')).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'Sayfalar' }).click();
+    await expect(
+      page.getByText(/Her bölüm için sayfaları oluşturun/)
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await expect(page.getByText('Sayfa 1 /')).toBeVisible({ timeout: 20_000 });
+    await advanceFromWriteStep(page);
+
+    const publishResponse = page.waitForResponse(
+      (r) => r.url().includes('/publish') && r.request().method() === 'POST',
+      { timeout: 60_000 }
+    );
+    await page.getByRole('button', { name: 'Yayınla' }).click();
+    expect((await publishResponse).ok()).toBeTruthy();
+    await expect(page.getByText(/Başarılı!/)).toBeVisible({ timeout: 30_000 });
+    await page.waitForURL(/\/dashboard\/books/, { timeout: 15_000 });
+
+    const searchRes = await request.get(
+      `${API_BASE}/api/books?search=${encodeURIComponent(title)}&is_published=true`,
+      { headers: { Accept: 'application/json' } }
+    );
+    expect(searchRes.ok()).toBeTruthy();
+    const searchBody = await searchRes.json();
+    const found = (searchBody.data ?? []).find(
+      (b: { title: string }) => b.title === title
+    );
+    expect(found, `Published book "${title}" not found in API`).toBeTruthy();
+    const slug = found.slug || found.id;
+
+    await page.goto(`/dashboard/books/update/${slug}?step=2`);
+    await expect(page.getByText('Bölümler (2)')).toBeVisible({ timeout: 30_000 });
+
+    const doomedRow = page.locator('.group.relative').filter({ hasText: 'Silinecek' });
+    await doomedRow.hover();
+    const deleteSave = waitForDraftSave(page);
+    await doomedRow.locator('button.text-destructive').click();
+    await deleteSave;
+    await expect(page.getByText('Bölümler (1)')).toBeVisible({ timeout: 10_000 });
+
+    const forwardSave = waitForDraftSave(page);
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await forwardSave;
+
+    await page.getByRole('button', { name: 'Geri' }).click();
+    await expect(page.getByText('Bölümlerinizi oluşturun')).toBeVisible();
+    await expect(page.getByText('Bölümler (1)')).toBeVisible();
+    await expect(page.getByText('Silinecek')).toHaveCount(0);
+    await expect(page.getByText('Kalacak')).toBeVisible();
+  });
 });

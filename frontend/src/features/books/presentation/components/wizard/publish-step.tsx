@@ -6,7 +6,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useBookEditorStore } from '../../stores/book-editor.store';
 import { BookApi } from '@/features/books/infrastructure/api/book.api';
 import { BookRepositoryImpl } from '@/features/books/infrastructure/repositories/book.repository.impl';
-import { CreateBookUseCase } from '@/features/books/application/use-cases/create-book.use-case';
 import { PublishBookUseCase } from '@/features/books/application/use-cases/publish-book.use-case';
 import { BookEntity } from '@/features/books';
 import { Button } from '@/components/ui/button';
@@ -26,9 +25,7 @@ export function PublishStep() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
-    bookInfo,
     currentBook,
-    draftBookId,
     setCurrentBook,
     setDraftBookId,
     saveDraft,
@@ -42,7 +39,6 @@ export function PublishStep() {
 
   const bookApi = new BookApi();
   const bookRepository = new BookRepositoryImpl(bookApi);
-  const createBookUseCase = new CreateBookUseCase(bookRepository);
   const publishBookUseCase = new PublishBookUseCase(bookRepository);
 
   const isPublished = Boolean(currentBook?.isPublished);
@@ -108,33 +104,13 @@ export function PublishStep() {
 
   /**
    * Wizard autosave ile aynı yol: POST /books/draft (bölüm/sayfa prune dahil).
-   * Eski saveSectionsAndPages PUT /sections/{id} kullanıyordu; DB'den silinmiş
-   * bölüm id'si store'da kalınca yayında "Section not found" üretiyordu.
    */
   const ensureDraftSynced = async (): Promise<number> => {
-    let bookId = useBookEditorStore.getState().currentBook?.id
-      ?? useBookEditorStore.getState().draftBookId
-      ?? undefined;
-
-    if (!bookId) {
-      const newBook = await createBookUseCase.execute({
-        title: bookInfo.title,
-        short_description: bookInfo.shortDescription || undefined,
-        category_id: bookInfo.categoryId || undefined,
-        is_adult: bookInfo.isAdult,
-        is_draft: true,
-      });
-      bookId = newBook.id;
-      setCurrentBook(newBook);
-      setDraftBookId(newBook.id);
-    }
-
     await saveDraft({ force: true });
 
     const syncedId =
       useBookEditorStore.getState().draftBookId
-      ?? useBookEditorStore.getState().currentBook?.id
-      ?? bookId;
+      ?? useBookEditorStore.getState().currentBook?.id;
 
     if (!syncedId) {
       throw new Error('Kitap bulunamadı.');

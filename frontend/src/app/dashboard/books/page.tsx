@@ -11,6 +11,7 @@ import api from '@/shared/lib/api-client'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebounce } from '@/hooks/use-debounce'
+import { clearBookEditorIfDeleted } from '@/features/books/presentation/utils/book-editor-storage'
 
 type BookStatus = 'all' | 'draft' | 'published'
 
@@ -78,7 +79,8 @@ export default function BooksDashboard() {
     mutationFn: async (id: number) => {
       await api.delete(`/api/books/${id}`)
     },
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
+      clearBookEditorIfDeleted(deletedId)
       queryClient.invalidateQueries({ queryKey: ['user-books'] })
     },
   })

@@ -17,7 +17,7 @@ vi.mock('@/stores/auth.store', () => ({
   },
 }));
 
-import { PageEntity, SectionEntity } from '@/features/books';
+import { BookEntity, PageEntity, SectionEntity } from '@/features/books';
 import { useBookEditorStore, resetBookEditorSaveDraftChainForTests } from './book-editor.store';
 
 function minimalDraftResponse(id: number, sections: unknown[] = []) {
@@ -352,5 +352,49 @@ describe('useBookEditorStore', () => {
     expect(after.sections).toHaveLength(1);
     expect(after.sections[0]!.title).toBe('Kalacak');
     expect(after.sections.some((sec) => sec.title === 'Silinecek')).toBe(false);
+  });
+
+  it('saveDraft skips empty sections payload for published books', async () => {
+    const now = new Date();
+    const s = useBookEditorStore.getState();
+    s.setDraftBookId(200);
+    s.setCurrentBook(
+      BookEntity.fromPrimitives({
+        id: 200,
+        author_id: 1,
+        category_id: 1,
+        title: 'Yayında',
+        short_description: null,
+        cover: null,
+        read_count: 0,
+        total_page: 1,
+        is_adult: false,
+        is_draft: false,
+        is_published: true,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+        sections: [
+          {
+            id: 1,
+            book_id: 200,
+            title: 'Bölüm',
+            order: 0,
+            total_page: 1,
+            is_visible: true,
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+            pages: [],
+          },
+        ],
+      })
+    );
+    s.updateBookInfo({ title: 'Yayında', categoryId: 1 });
+    useBookEditorStore.setState({ sections: [], pages: {} });
+
+    postMock.mockClear();
+    await s.saveDraft({ force: true });
+
+    expect(postMock).not.toHaveBeenCalled();
+    expect(useBookEditorStore.getState().pendingServerSync).toBe(true);
   });
 });
