@@ -6,6 +6,7 @@ import {
   getReadableBook,
   loginAs,
   SEEDED_AUTHOR,
+  SEEDED_READER,
 } from './helpers';
 
 test.describe('Authenticated journeys (author)', () => {
@@ -75,7 +76,7 @@ test.describe('Authenticated journeys (author)', () => {
     const book = await getReadableBook(request);
     test.skip(!book, 'No readable book seeded');
 
-    await loginAs(page, request, SEEDED_AUTHOR);
+    await loginAs(page, request, SEEDED_READER);
     await page.goto(`/book/${book!.slug}`);
 
     const likeBtn = page.getByRole('button', { name: 'Beğen' });

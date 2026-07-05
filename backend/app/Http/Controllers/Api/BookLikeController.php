@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Book;
 use App\Models\BookLike;
 use App\Http\Resources\BookResource;
 use Illuminate\Http\Request;
@@ -52,17 +53,25 @@ class BookLikeController extends Controller
                 'is_liked' => false,
                 'message' => 'Beğeni kaldırıldı.'
             ]);
-        } else {
-            BookLike::create([
-                'user_id' => $userId,
-                'book_id' => $bookId,
-            ]);
-            return response()->json([
-                'success' => true,
-                'is_liked' => true,
-                'message' => 'Kitap beğenildi.'
-            ]);
         }
+
+        $book = Book::findOrFail($bookId);
+        if ((int) $book->author_id === $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kendi kitabınızı beğenemezsiniz.',
+            ], 403);
+        }
+
+        BookLike::create([
+            'user_id' => $userId,
+            'book_id' => $bookId,
+        ]);
+        return response()->json([
+            'success' => true,
+            'is_liked' => true,
+            'message' => 'Kitap beğenildi.'
+        ]);
     }
 
     public function check(int $bookId, Request $request): JsonResponse

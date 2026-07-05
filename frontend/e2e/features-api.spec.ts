@@ -9,6 +9,7 @@ import {
   backendReachable,
   getReadableBook,
   requireSeededBackend,
+  requireSeededAuthor,
   SEEDED_AUTHOR,
   SEEDED_READER,
 } from './helpers';
@@ -63,6 +64,44 @@ test.describe('Extended API features', () => {
       data: { book_id: detail.data.id, score: 4 },
     });
     expect(res.ok()).toBeTruthy();
+  });
+
+  test('author cannot rate own book via API', async ({ request }) => {
+    await requireSeededAuthor(request);
+    const authorToken = await apiLogin(request, SEEDED_AUTHOR);
+    const authorId = await apiGetUserId(request, authorToken);
+    const booksRes = await request.get(`${API_BASE}/api/books?per_page=50`);
+    const books = ((await booksRes.json()).data ?? []) as Array<{
+      id: number;
+      author_id: number;
+    }>;
+    const ownBook = books.find((b) => b.author_id === authorId);
+    test.skip(!ownBook, 'No published book owned by seeded author');
+
+    const res = await request.post(`${API_BASE}/api/ratings`, {
+      headers: authHeaders(authorToken),
+      data: { book_id: ownBook!.id, score: 5 },
+    });
+    expect(res.status()).toBe(403);
+  });
+
+  test('author cannot like own book via API', async ({ request }) => {
+    await requireSeededAuthor(request);
+    const authorToken = await apiLogin(request, SEEDED_AUTHOR);
+    const authorId = await apiGetUserId(request, authorToken);
+    const booksRes = await request.get(`${API_BASE}/api/books?per_page=50`);
+    const books = ((await booksRes.json()).data ?? []) as Array<{
+      id: number;
+      author_id: number;
+    }>;
+    const ownBook = books.find((b) => b.author_id === authorId);
+    test.skip(!ownBook, 'No published book owned by seeded author');
+
+    const res = await request.post(`${API_BASE}/api/likes/toggle`, {
+      headers: authHeaders(authorToken),
+      data: { book_id: ownBook!.id },
+    });
+    expect(res.status()).toBe(403);
   });
 
   test('reader can like a comment via API', async ({ request }) => {

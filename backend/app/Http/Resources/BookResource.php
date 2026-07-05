@@ -16,6 +16,12 @@ class BookResource extends JsonResource
         // Handle both Book entity and BookModel
         if ($this->resource instanceof BookModel) {
             $model = $this->resource;
+            if (! array_key_exists('ratings_count', $model->getAttributes())) {
+                $model->loadCount('ratings');
+            }
+            if (! array_key_exists('ratings_avg_score', $model->getAttributes())) {
+                $model->loadAvg('ratings', 'score');
+            }
             $bookId = $model->id;
             $authorId = $model->author_id;
             $categoryId = $model->category_id;
@@ -60,7 +66,7 @@ class BookResource extends JsonResource
         }
 
         $ratingRepository = app(RatingRepositoryInterface::class);
-        if ($model !== null && array_key_exists('ratings_avg_score', $model->getAttributes())) {
+        if ($model !== null && ($model->ratings_avg_score !== null || array_key_exists('ratings_avg_score', $model->getAttributes()))) {
             $averageRating = (float) ($model->ratings_avg_score ?? 0);
         } else {
             $averageRating = $ratingRepository->getAverageRatingByBookId($bookId);

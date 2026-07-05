@@ -185,13 +185,24 @@ export function PagesWriteStep() {
   const pageIndex = activeSectionPages.findIndex((p) => p.id === activePage.id);
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
-  const sectionFirstPages = sortedSections
-    .map((sec) => {
-      const list = sortWizardSectionPages(sec, pages);
-      const first = list[0];
-      return first ? { sectionId: sec.id, pageId: first.id } : null;
-    })
-    .filter((x): x is { sectionId: number; pageId: number } => x != null);
+
+  const createPageInSection = (sectionId: number): number => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return activePage!.id;
+    const list = sortWizardSectionPages(section, pages);
+    const tempId = -(Date.now() + Math.floor(Math.random() * 1000));
+    const now = new Date();
+    const newPage = new PageEntity(
+      tempId,
+      sectionId,
+      '',
+      list.length,
+      now,
+      now
+    );
+    addPage(sectionId, newPage);
+    return newPage.id;
+  };
 
   const currentSectionPagePickerOptions = activeSectionPages.map((p, idx) => ({
     pageId: p.id,
@@ -208,7 +219,6 @@ export function PagesWriteStep() {
       allPages={activeSectionPages}
       sortedSections={sortedSections}
       activeSectionId={activeSectionId!}
-      sectionFirstPages={sectionFirstPages}
       currentSectionPagePickerOptions={currentSectionPagePickerOptions}
       onClose={goToPageList}
       onSave={(content) => {
@@ -226,21 +236,18 @@ export function PagesWriteStep() {
         setActiveSection(sectionId);
         setActivePage(pageId);
       }}
+      onActivateSection={(sectionId) => {
+        const section = sections.find((s) => s.id === sectionId);
+        if (!section) return;
+        const list = sortWizardSectionPages(section, pages);
+        const pageId = list[0]?.id ?? createPageInSection(sectionId);
+        setActiveSection(sectionId);
+        setActivePage(pageId);
+      }}
       onCreateNewPage={() => {
-        if (!activeSectionId || !activeSection) return;
-        const tempId = -(Date.now() + Math.floor(Math.random() * 1000));
-        const now = new Date();
-        const list = sortWizardSectionPages(activeSection, pages);
-        const newPage = new PageEntity(
-          tempId,
-          activeSectionId,
-          '',
-          list.length,
-          now,
-          now
-        );
-        addPage(activeSectionId, newPage);
-        setActivePage(newPage.id);
+        if (!activeSectionId) return;
+        const pageId = createPageInSection(activeSectionId);
+        setActivePage(pageId);
       }}
       onAdvanceWizard={advanceWizard}
       canAdvanceWizard={canAdvanceWizard}

@@ -35,6 +35,7 @@ interface BookCardProps {
     is_draft?: boolean
     is_published?: boolean
     rating?: number | null
+    average_rating?: number | null
     category?: {
       name: string
     } | null
@@ -128,6 +129,8 @@ function DeleteBookDialog({
 }
 
 export function BookCard({ book, href, dashboardActions }: BookCardProps) {
+  const displayRating =
+    book.average_rating ?? book.rating ?? null
   const bookSlug = book.slug || book.id
   const cardHref = href ?? `/book/${bookSlug}`
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -217,10 +220,10 @@ export function BookCard({ book, href, dashboardActions }: BookCardProps) {
             <Eye className="h-4 w-4" />
             <span>{book.read_count || 0}</span>
           </div>
-          {book.rating !== null && book.rating !== undefined && (
+          {displayRating !== null && displayRating !== undefined && displayRating > 0 && (
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-              <span className="font-medium">{book.rating.toFixed(1)}</span>
+              <span className="font-medium">{Number(displayRating).toFixed(1)}</span>
             </div>
           )}
         </div>

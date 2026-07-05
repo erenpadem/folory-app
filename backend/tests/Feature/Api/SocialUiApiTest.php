@@ -142,4 +142,23 @@ class SocialUiApiTest extends TestCase
         ]);
         $this->assertDatabaseCount('ratings', 1);
     }
+
+    public function test_rating_index_returns_flat_list_with_average(): void
+    {
+        [$book] = $this->publishedBookWithPage();
+        $reader = User::factory()->create();
+
+        Sanctum::actingAs($reader);
+        $this->postJson('/api/ratings', ['book_id' => $book->id, 'score' => 4])->assertCreated();
+
+        $response = $this->getJson('/api/ratings/book/'.$book->id);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('average_rating', 4)
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonCount(1, 'data');
+
+        $this->assertSame(4, $response->json('data.0.score'));
+    }
 }

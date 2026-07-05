@@ -10,13 +10,12 @@ import {
     DrawerTitle,
     DrawerTrigger,
 } from "@/components/ui/drawer"
-import Image from 'next/image'
 import ThemeChanger from './theme-switcher'
 import { useAuth } from '@/features/auth'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { BRAND_NAME } from '@/lib/brand'
+import { BrandMark } from '@/components/brand/brand-mark'
 import { buildLoginUrl } from '@/lib/auth-redirect'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
@@ -142,7 +141,7 @@ const Navbar = () => {
             >
                 <div className="shrink-0">
                     <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
-                        {BRAND_NAME}
+                        <BrandMark showLogo />
                     </Link>
                 </div>
 
@@ -321,7 +320,7 @@ const Navbar = () => {
             >
                 <div className="flex items-center justify-between w-full">
                 <Link className='text-2xl font-bold flex items-center gap-2' href={'/'}>
-                    {BRAND_NAME}
+                    <BrandMark />
                 </Link>
 
                 <Drawer
@@ -337,10 +336,9 @@ const Navbar = () => {
                     <DrawerContent className="h-full top-0 right-0 left-auto mt-0 w-[300px] rounded-none">
                         <div className="p-6 space-y-8">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Image src="/assets/logo.svg" width={32} height={32} alt="" aria-hidden priority />
-                                    <DrawerTitle className="font-bold text-lg">{BRAND_NAME}</DrawerTitle>
-                                </div>
+                                <DrawerTitle className="font-bold text-lg">
+                                    <BrandMark showLogo />
+                                </DrawerTitle>
                                 <ThemeChanger />
                             </div>
 

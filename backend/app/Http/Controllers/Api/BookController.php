@@ -67,7 +67,7 @@ class BookController extends Controller
         $books = $this->listBooksUseCase->execute($perPage, $filters);
     
         return response()->json([
-            'data' => BookResource::collection($books->items()),
+            'data' => BookResource::collection($books->items())->resolve($request),
             'meta' => [
                 'current_page' => $books->currentPage(),
                 'last_page' => $books->lastPage(),
@@ -238,7 +238,7 @@ class BookController extends Controller
             })->filter();
 
             return response()->json([
-                'data' => BookResource::collection($bookEntities),
+                'data' => BookResource::collection($bookEntities)->resolve($request),
                 'meta' => [
                     'current_page' => $books->currentPage(),
                     'last_page' => $books->lastPage(),
@@ -274,7 +274,7 @@ class BookController extends Controller
             : $this->listBooksUseCase->execute(5, ['is_published' => true]);
 
         return response()->json([
-            'data' => BookResource::collection($similarBooks->items()),
+            'data' => BookResource::collection($similarBooks->items())->resolve($request),
             'message' => 'Similar books retrieved successfully.'
         ]);
     }

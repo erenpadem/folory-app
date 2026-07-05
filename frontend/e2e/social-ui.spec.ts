@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   API_BASE,
+  apiGetUserId,
   apiLogin,
   apiPostComment,
   authHeaders,
@@ -29,6 +30,26 @@ test.describe('Social UI (rating, follow, reply)', () => {
     await star.click();
 
     await expect(page.getByText('Sizin puanınız: 4')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('author cannot rate or like own book on detail page', async ({ page, request }) => {
+    await requireSeededAuthor(request);
+    const authorToken = await apiLogin(request, SEEDED_AUTHOR);
+    const authorId = await apiGetUserId(request, authorToken);
+    const booksRes = await request.get(`${API_BASE}/api/books?per_page=50`);
+    const books = ((await booksRes.json()).data ?? []) as Array<{
+      id: number;
+      slug: string;
+      author_id: number;
+    }>;
+    const ownBook = books.find((b) => b.author_id === authorId);
+    test.skip(!ownBook, 'No published book owned by seeded author');
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await page.goto(`/book/${ownBook!.slug}`);
+
+    await expect(page.getByRole('button', { name: 'Beğen' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '1 yıldız' })).toHaveCount(0);
   });
 
   test('reader can follow author from public profile', async ({ page, request }) => {

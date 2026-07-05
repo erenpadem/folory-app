@@ -150,4 +150,39 @@ class CommentsBookmarksLikesTest extends TestCase
             'score' => 5,
         ]);
     }
+
+    public function test_author_cannot_rate_own_book(): void
+    {
+        [$book, $page, $author] = $this->publishedBookWithPage();
+
+        Sanctum::actingAs($author);
+
+        $this->postJson('/api/ratings', [
+            'book_id' => $book->id,
+            'score' => 5,
+        ])->assertForbidden()
+            ->assertJsonPath('message', 'Kendi kitabınıza puan veremezsiniz.');
+
+        $this->assertDatabaseMissing('ratings', [
+            'book_id' => $book->id,
+            'user_id' => $author->id,
+        ]);
+    }
+
+    public function test_author_cannot_like_own_book(): void
+    {
+        [$book, $page, $author] = $this->publishedBookWithPage();
+
+        Sanctum::actingAs($author);
+
+        $this->postJson('/api/likes/toggle', [
+            'book_id' => $book->id,
+        ])->assertForbidden()
+            ->assertJsonPath('message', 'Kendi kitabınızı beğenemezsiniz.');
+
+        $this->assertDatabaseMissing('book_likes', [
+            'book_id' => $book->id,
+            'user_id' => $author->id,
+        ]);
+    }
 }

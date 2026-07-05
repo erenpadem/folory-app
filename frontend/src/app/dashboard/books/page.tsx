@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Search, Filter, X } from 'lucide-react'
 import api from '@/shared/lib/api-client'
+import { unwrapResourceCollection } from '@/shared/lib/unwrap-resource-collection'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -85,7 +86,7 @@ export default function BooksDashboard() {
     },
   })
 
-  const books = data?.data || []
+  const books = unwrapResourceCollection(data?.data ?? data)
   const counts = data?.meta?.counts as { all?: number; published?: number; draft?: number } | undefined
 
   const totalAll = counts?.all ?? books.length

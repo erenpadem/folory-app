@@ -7,6 +7,7 @@ use App\Application\UseCases\Rating\CreateRatingUseCase;
 use App\Domain\Rating\Repositories\RatingRepositoryInterface;
 use App\Http\Requests\Rating\StoreRatingRequest;
 use App\Http\Resources\RatingResource;
+use App\Models\Book;
 use App\Models\Rating as RatingModel;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -33,10 +34,15 @@ class RatingController extends Controller
         $ratingEntities = collect($ratings->items())->map(function ($model) {
             return $this->ratingRepository->toEntity($model);
         })->filter();
+
+        $ratingItems = $ratingEntities
+            ->map(fn ($entity) => (new RatingResource($entity))->resolve($request))
+            ->values()
+            ->all();
         
         return response()->json([
             'success' => true,
-            'data' => RatingResource::collection($ratingEntities),
+            'data' => $ratingItems,
             'average_rating' => $averageRating > 0 ? round($averageRating, 1) : null,
             'meta' => [
                 'current_page' => $ratings->currentPage(),
@@ -63,6 +69,15 @@ class RatingController extends Controller
     public function store(StoreRatingRequest $request): JsonResponse
     {
         $data = $request->validated();
+
+        $book = Book::findOrFail($data['book_id']);
+        if ((int) $book->author_id === $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kendi kitabınıza puan veremezsiniz.',
+            ], 403);
+        }
+
         $rating = $this->createRatingUseCase->execute(
             $request->user()->id,
             $data['book_id'],

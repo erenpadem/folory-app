@@ -42,14 +42,14 @@ interface FullScreenPageEditorProps {
   /** Bölüm sırası (order); yazım üstünde geçiş için */
   sortedSections: SectionEntity[];
   activeSectionId: number;
-  /** Bölüm değişince hedef: her bölümün ilk sayfa id’si */
-  sectionFirstPages: { sectionId: number; pageId: number }[];
   /** Aktif bölümdeki sayfalar (liste: yalnızca "Sayfa N") */
   currentSectionPagePickerOptions: WritePagePickerOption[];
   onClose: () => void | Promise<void>;
   onSave: (content: string) => void;
   /** Bölüm + sayfa birlikte (URL / store tutarlılığı) */
   onActivateWritePage: (sectionId: number, pageId: number) => void;
+  /** Bölüm seçici: hedef bölümde sayfa yoksa oluşturulur */
+  onActivateSection: (sectionId: number) => void;
   onCreateNewPage: () => void;
   /** Adım 5’e geç (Kaydet sonrası içerik flush edilir) */
   onAdvanceWizard: () => void | Promise<void>;
@@ -66,11 +66,11 @@ export function FullScreenPageEditor({
   allPages,
   sortedSections,
   activeSectionId,
-  sectionFirstPages,
   currentSectionPagePickerOptions,
   onClose,
   onSave,
   onActivateWritePage,
+  onActivateSection,
   onCreateNewPage,
   onAdvanceWizard,
   canAdvanceWizard,
@@ -287,10 +287,8 @@ export function FullScreenPageEditor({
 
   const handleSectionSwitch = (sectionId: number) => {
     if (sectionId === activeSectionId) return;
-    const first = sectionFirstPages.find((p) => p.sectionId === sectionId);
-    if (!first) return;
     flushEditorToStore();
-    onActivateWritePage(sectionId, first.pageId);
+    onActivateSection(sectionId);
   };
 
   const handleSectionSelectValue = (value: string) => {

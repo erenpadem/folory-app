@@ -13,6 +13,7 @@ interface BookStarRatingProps {
   bookId: number
   averageRating: number
   ratingCount: number
+  canRate?: boolean
   onRated?: () => void
 }
 
@@ -20,6 +21,7 @@ export function BookStarRating({
   bookId,
   averageRating,
   ratingCount,
+  canRate = true,
   onRated,
 }: BookStarRatingProps) {
   const { isAuthenticated } = useAuth()
@@ -29,7 +31,7 @@ export function BookStarRating({
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !canRate) {
       setUserScore(null)
       return
     }
@@ -37,7 +39,7 @@ export function BookStarRating({
       .get(`/api/ratings/book/${bookId}/mine`)
       .then((res) => setUserScore(res.data?.data?.score ?? null))
       .catch(() => setUserScore(null))
-  }, [bookId, isAuthenticated])
+  }, [bookId, isAuthenticated, canRate])
 
   const handleRate = async (score: number) => {
     if (!isAuthenticated) {
@@ -78,28 +80,29 @@ export function BookStarRating({
       </div>
 
       <div className="flex items-center gap-1" role="group" aria-label="Kitabı puanla">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            disabled={submitting}
-            className="rounded p-0.5 transition-colors hover:scale-110 disabled:opacity-50"
-            aria-label={`${star} yıldız`}
-            onMouseEnter={() => setHoverScore(star)}
-            onMouseLeave={() => setHoverScore(0)}
-            onClick={() => void handleRate(star)}
-          >
-            <Star
-              className={cn(
-                'h-5 w-5',
-                star <= activeScore
-                  ? 'text-yellow-500 fill-yellow-500'
-                  : 'text-muted-foreground'
-              )}
-            />
-          </button>
-        ))}
-        {userScore != null && (
+        {canRate &&
+          [1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              disabled={submitting}
+              className="rounded p-0.5 transition-colors hover:scale-110 disabled:opacity-50"
+              aria-label={`${star} yıldız`}
+              onMouseEnter={() => setHoverScore(star)}
+              onMouseLeave={() => setHoverScore(0)}
+              onClick={() => void handleRate(star)}
+            >
+              <Star
+                className={cn(
+                  'h-5 w-5',
+                  star <= activeScore
+                    ? 'text-yellow-500 fill-yellow-500'
+                    : 'text-muted-foreground'
+                )}
+              />
+            </button>
+          ))}
+        {canRate && userScore != null && (
           <span className="ml-1 text-xs text-muted-foreground">Sizin puanınız: {userScore}</span>
         )}
       </div>

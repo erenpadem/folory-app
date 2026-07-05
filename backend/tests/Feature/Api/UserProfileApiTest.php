@@ -81,6 +81,31 @@ class UserProfileApiTest extends TestCase
             ->assertJsonPath('data.stats.draft_books', 1);
     }
 
+    public function test_author_dashboard_stats_include_ratings(): void
+    {
+        $author = User::factory()->author()->create();
+        $reader = User::factory()->create();
+        $book = Book::factory()->published()->create(['author_id' => $author->id]);
+
+        \App\Models\Rating::create([
+            'user_id' => $reader->id,
+            'book_id' => $book->id,
+            'score' => 4,
+        ]);
+        \App\Models\Rating::create([
+            'user_id' => User::factory()->create()->id,
+            'book_id' => $book->id,
+            'score' => 5,
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $this->getJson('/api/dashboard/stats')
+            ->assertOk()
+            ->assertJsonPath('data.stats.total_ratings', 2)
+            ->assertJsonPath('data.stats.average_rating', 4.5);
+    }
+
     public function test_similar_books_endpoint_returns_books(): void
     {
         $category = Category::factory()->create();

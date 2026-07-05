@@ -15,6 +15,7 @@ import toast from "react-hot-toast"
 import Link from "next/link"
 import { buildLoginUrl, getCurrentReturnTo } from '@/lib/auth-redirect'
 import { SurfacePanel } from '@/components/ui/surface-panel'
+import { fetchBookComments } from '@/lib/book-comments-api'
 
 interface BookCommentsTabProps {
   book: BookEntity
@@ -28,10 +29,7 @@ export function BookCommentsTab({ book }: BookCommentsTabProps) {
   // Fetch comments
   const { data: commentsData, isLoading } = useQuery({
     queryKey: ['book-comments', book.id],
-    queryFn: async () => {
-      const response = await api.get(`/api/comments/book/${book.id}`)
-      return response.data
-    },
+    queryFn: () => fetchBookComments(book.id),
   })
 
   // Add comment mutation

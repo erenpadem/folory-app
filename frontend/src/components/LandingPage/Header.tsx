@@ -3,6 +3,8 @@ import React from 'react'
 import { Button } from "@/components/ui/button"
 import Image from "next/image";
 import { useRouter } from 'next/navigation'
+import { BetaBadge } from '@/components/brand/beta-badge'
+import { BRAND_NAME } from '@/lib/brand'
 
 export default function Header() {
     const router = useRouter();
@@ -33,7 +35,12 @@ export default function Header() {
                 <div>
                     <h3 className="text-md">
                         <span className="font-bold">Hikayeni paylaş</span> <span className="text-secondary font-bold">Okuyucudan destek al </span>
-                        ve <span className="font-bold">Fo-lory</span> ile kazanç sağlamaya başla.
+                        ve{" "}
+                        <span className="inline-flex items-center gap-1.5 font-bold">
+                            {BRAND_NAME}
+                            <BetaBadge />
+                        </span>{" "}
+                        ile kazanç sağlamaya başla.
                     </h3>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-x-3">

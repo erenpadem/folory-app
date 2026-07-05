@@ -26,6 +26,7 @@ interface BookHeroProps {
   book: BookEntity
   isSaved: boolean
   isLiked: boolean
+  isOwner?: boolean
   onSave: () => void
   onLike: () => void
   showFullDescription: boolean
@@ -38,6 +39,7 @@ export function BookHero({
   book, 
   isSaved, 
   isLiked, 
+  isOwner = false,
   onSave, 
   onLike, 
   showFullDescription,
@@ -226,19 +228,22 @@ export function BookHero({
               bookId={book.id}
               averageRating={book.averageRating}
               ratingCount={book.ratingCount}
+              canRate={!isOwner}
               onRated={onRated}
             />
-            <div className="flex items-center gap-2">
-              <Button
-                variant={isLiked ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-                onClick={onLike}
-              >
-                <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
-                Beğen
-              </Button>
-            </div>
+            {!isOwner && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={isLiked ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={onLike}
+                >
+                  <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+                  Beğen
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

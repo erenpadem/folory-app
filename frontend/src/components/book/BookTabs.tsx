@@ -12,7 +12,7 @@ import { BookSectionsTab } from './BookSectionsTab'
 import { BookCommentsTab } from './BookCommentsTab'
 import { BookEntity } from '@/features/books'
 import { useQuery } from '@tanstack/react-query'
-import api from '@/shared/lib/api-client'
+import { fetchBookComments } from '@/lib/book-comments-api'
 
 interface BookTabsProps {
   activeTab: string
@@ -23,9 +23,9 @@ interface BookTabsProps {
 export function BookTabs({ activeTab, onTabChange, book }: BookTabsProps) {
   const { data: commentsCount = 0 } = useQuery({
     queryKey: ['book-comments', book.id],
-    queryFn: async () => {
-      const response = await api.get(`/api/comments/book/${book.id}`)
-      const list = response.data?.data ?? []
+    queryFn: () => fetchBookComments(book.id),
+    select: (payload) => {
+      const list = payload?.data ?? []
       return Array.isArray(list) ? list.length : 0
     },
   })

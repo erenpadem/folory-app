@@ -162,6 +162,11 @@ export default function BookDetailPage() {
         }
     };
 
+    const isOwner =
+        isAuthenticated &&
+        user != null &&
+        Number(user.id) === book.authorId;
+
     return (
         <div className="bg-background">
             <BookHeader />
@@ -170,6 +175,7 @@ export default function BookDetailPage() {
                 book={book}
                 isSaved={isSaved}
                 isLiked={isLiked}
+                isOwner={isOwner}
                 onSave={handleSave}
                 onLike={handleLike}
                 showFullDescription={showFullDescription}

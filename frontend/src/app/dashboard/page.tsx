@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AppTabs,
@@ -12,17 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookCard } from '@/components/book/BookCard'
 import { CommentItem } from '@/components/book/CommentItem'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Star, BookOpen, MessageSquare, Eye, Plus } from 'lucide-react'
 import api from '@/shared/lib/api-client'
+import { unwrapResourceCollection } from '@/shared/lib/unwrap-resource-collection'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
-  const [replyingTo, setReplyingTo] = useState<number | null>(null)
-  const [replyContent, setReplyContent] = useState('')
 
   const deleteBook = useMutation({
     mutationFn: async (id: number) => {
@@ -60,15 +57,16 @@ export default function DashboardPage() {
     queryFn: async () => {
       // Get all user books first
       const booksResponse = await api.get('/api/books/me')
-      const books = booksResponse.data.data || []
+      const books = unwrapResourceCollection(booksResponse.data?.data ?? booksResponse.data)
       
       // Fetch comments for each book
       const commentsPromises = books.map(async (book: any) => {
         try {
           const commentsResponse = await api.get(`/api/comments/book/${book.id}`)
+          const comments = unwrapResourceCollection(commentsResponse.data?.data ?? commentsResponse.data)
           return {
             book,
-            comments: commentsResponse.data.data || []
+            comments,
           }
         } catch (error) {
           return { book, comments: [] }
@@ -85,26 +83,39 @@ export default function DashboardPage() {
     queryKey: ['user-book-ratings'],
     queryFn: async () => {
       const booksResponse = await api.get('/api/books/me')
-      const books = booksResponse.data.data || []
+      const books = unwrapResourceCollection(booksResponse.data?.data ?? booksResponse.data)
       
       const ratingsPromises = books.map(async (book: any) => {
         try {
           const ratingsResponse = await api.get(`/api/ratings/book/${book.id}`)
+          const payload = ratingsResponse.data
+          const ratings = unwrapResourceCollection(payload?.data ?? payload)
+          const averageRating =
+            payload?.average_rating != null && Number.isFinite(Number(payload.average_rating))
+              ? Number(payload.average_rating)
+              : 0
+          const ratingCount =
+            payload?.meta?.total != null && Number.isFinite(Number(payload.meta.total))
+              ? Number(payload.meta.total)
+              : ratings.length
+
           return {
             book,
-            ratings: ratingsResponse.data.data || [],
-            averageRating: ratingsResponse.data.average_rating || 0
+            ratings,
+            averageRating,
+            ratingCount,
           }
         } catch (error) {
-          return { book, ratings: [], averageRating: 0 }
+          return { book, ratings: [], averageRating: 0, ratingCount: 0 }
         }
       })
       
-      return await Promise.all(ratingsPromises)
+      const results = await Promise.all(ratingsPromises)
+      return results.filter((item) => item.ratingCount > 0 || item.averageRating > 0)
     },
   })
 
-  const books = booksData?.data || []
+  const books = unwrapResourceCollection(booksData?.data ?? booksData)
   const comments = commentsData || []
   const ratings = ratingsData || []
   
@@ -115,34 +126,18 @@ export default function DashboardPage() {
     draftBooks: statsData.data.stats.draft_books,
     totalViews: statsData.data.stats.total_views,
     totalComments: statsData.data.stats.total_comments,
-    averageRating: statsData.data.stats.average_rating
+    totalRatings: statsData.data.stats.total_ratings ?? 0,
+    averageRating: statsData.data.stats.average_rating ?? 0
   } : {
     totalBooks: books.length,
     publishedBooks: books.filter((b: any) => b.is_published).length,
     draftBooks: books.filter((b: any) => b.is_draft && !b.is_published).length,
     totalViews: books.reduce((sum: number, b: any) => sum + (b.read_count || 0), 0),
     totalComments: comments.reduce((sum: number, c: any) => sum + c.comments.length, 0),
+    totalRatings: ratings.reduce((sum: number, r: any) => sum + (r.ratingCount || 0), 0),
     averageRating: ratings.length > 0 
       ? ratings.reduce((sum: number, r: any) => sum + r.averageRating, 0) / ratings.length 
       : 0
-  }
-
-  const handleReplySubmit = async (commentId: number, bookId: number) => {
-    if (!replyContent.trim()) return
-
-    try {
-      await api.post(`/api/comments`, {
-        book_id: bookId,
-        content: replyContent,
-        parent_id: commentId
-      })
-      setReplyingTo(null)
-      setReplyContent('')
-      refetchComments()
-      // Show success toast
-    } catch (error) {
-      // Show error toast
-    }
   }
 
   return (
@@ -225,7 +220,11 @@ export default function DashboardPage() {
                 <div className="text-2xl font-bold">
                   {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '—'}
                 </div>
-                <p className="text-xs text-muted-foreground">Tüm kitaplarınız</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalRatings > 0
+                    ? `${stats.totalRatings} değerlendirme`
+                    : 'Tüm kitaplarınız'}
+                </p>
               </CardContent>
             </Card>
           </>
@@ -303,59 +302,27 @@ export default function DashboardPage() {
                   </div>
                   <div className="space-y-4">
                     {item.comments.map((comment: any) => (
-                      <div key={comment.id} className="space-y-2">
-                        <CommentItem
-                          comment={{
-                            id: String(comment.id),
-                            user: comment.user?.name || 'Anonim',
-                            avatar: comment.user?.avatar || '/placeholder-avatar.jpg',
-                            text: comment.content,
-                            date: new Date(comment.created_at).toLocaleDateString('tr-TR'),
-                            likes: comment.likes_count || 0,
-                            replies: comment.replies || []
-                          }}
-                          depth={0}
-                        />
-                        {replyingTo === comment.id && (
-                          <div className="ml-12 space-y-2">
-                            <Textarea
-                              placeholder="Yanıtınızı yazın..."
-                              value={replyContent}
-                              onChange={(e) => setReplyContent(e.target.value)}
-                              rows={3}
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleReplySubmit(comment.id, item.book.id)}
-                                disabled={!replyContent.trim()}
-                              >
-                                Gönder
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setReplyingTo(null)
-                                  setReplyContent('')
-                                }}
-                              >
-                                İptal
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        {replyingTo !== comment.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-12"
-                            onClick={() => setReplyingTo(comment.id)}
-                          >
-                            Yanıtla
-                          </Button>
-                        )}
-                      </div>
+                      <CommentItem
+                        key={comment.id}
+                        comment={{
+                          id: comment.id,
+                          content: comment.content,
+                          user: comment.user
+                            ? {
+                                id: comment.user.id,
+                                name: comment.user.name,
+                                avatar: comment.user.avatar,
+                              }
+                            : undefined,
+                          likes_count: comment.likes_count ?? 0,
+                          is_liked: comment.is_liked,
+                          created_at: comment.created_at,
+                          replies: comment.replies ?? [],
+                        }}
+                        bookId={item.book.id}
+                        depth={0}
+                        onReplyPosted={() => void refetchComments()}
+                      />
                     ))}
                   </div>
                 </Card>
@@ -392,7 +359,7 @@ export default function DashboardPage() {
                           <span className="font-medium">{item.averageRating.toFixed(1)}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          ({item.ratings.length} puan)
+                          ({item.ratingCount} değerlendirme)
                         </span>
                       </div>
                     </div>
@@ -425,7 +392,7 @@ export default function DashboardPage() {
                     {item.ratings.length > 5 && (
                       <Link href={`/book/${item.book.slug || item.book.id}`}>
                         <Button variant="link" className="w-full">
-                          Tümünü Gör ({item.ratings.length} puan)
+                          Tümünü Gör ({item.ratingCount} değerlendirme)
                         </Button>
                       </Link>
                     )}
@@ -469,6 +436,10 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <span>Toplam Yorum</span>
                     <span className="font-medium">{stats.totalComments}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Toplam Değerlendirme</span>
+                    <span className="font-medium">{stats.totalRatings}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Ortalama Puan</span>
