@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { API_BASE, apiRegister, backendReachable } from './helpers';
+import { API_BASE, apiRegister, backendReachable, loginAs, requireSeededAuthor, SEEDED_AUTHOR } from './helpers';
 
 test.describe('Authentication (UI)', () => {
   test('register (API) then login (UI) redirects away from login', async ({ page, request }) => {
@@ -57,5 +57,24 @@ test.describe('Authentication (UI)', () => {
     await page.goto('/dashboard');
     await page.waitForURL(/\/auth\/login/, { timeout: 20_000 });
     expect(new URL(page.url()).pathname).toContain('/auth/login');
+  });
+
+  test('logout clears session and returns to public state', async ({ page, request }) => {
+    await requireSeededAuthor(request);
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await page.goto('/dashboard');
+    await expect(page.getByText('Toplam Kitap')).toBeVisible({ timeout: 25_000 });
+
+    await page.locator('button.relative.h-8.w-8.rounded-full').first().click();
+    const logoutReq = page.waitForResponse(
+      (r) => r.url().includes('/api/logout') && r.ok(),
+      { timeout: 15_000 }
+    );
+    await page.getByRole('menuitem', { name: 'Çıkış Yap' }).click();
+    await logoutReq;
+
+    await page.goto('/dashboard');
+    await page.waitForURL(/\/auth\/login/, { timeout: 15_000 });
   });
 });

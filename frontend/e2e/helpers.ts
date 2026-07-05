@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 export const API_BASE = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:8081';
 
@@ -7,13 +7,13 @@ export const API_BASE = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:8081
  * Author "erenpadem" owns several published books.
  */
 export const SEEDED_AUTHOR = {
-  email: 'erenpadem@fo-lory.com',
-  password: 'erensunucu',
+  email: process.env.PLAYWRIGHT_AUTHOR_EMAIL ?? 'erenpadem@fo-lory.com',
+  password: process.env.PLAYWRIGHT_AUTHOR_PASSWORD ?? 'erensunucu',
 };
 
 export const SEEDED_READER = {
-  email: 'ayse@example.com',
-  password: 'password',
+  email: process.env.PLAYWRIGHT_READER_EMAIL ?? 'ayse@example.com',
+  password: process.env.PLAYWRIGHT_READER_PASSWORD ?? 'password',
 };
 
 export interface SeedBook {
@@ -31,6 +31,60 @@ export async function backendReachable(request: APIRequestContext): Promise<bool
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns true when the seeded reader account can log in.
+ */
+export async function seededReaderReady(request: APIRequestContext): Promise<boolean> {
+  try {
+    const res = await request.post(`${API_BASE}/api/login`, {
+      data: SEEDED_READER,
+      headers: { Accept: 'application/json' },
+      timeout: 5000,
+    });
+    return res.ok();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns true when the seeded author account can log in.
+ */
+export async function seededAuthorReady(request: APIRequestContext): Promise<boolean> {
+  try {
+    const res = await request.post(`${API_BASE}/api/login`, {
+      data: SEEDED_AUTHOR,
+      headers: { Accept: 'application/json' },
+      timeout: 5000,
+    });
+    return res.ok();
+  } catch {
+    return false;
+  }
+}
+
+/** Skip hook for specs that need seeded reader (and reachable API). */
+export async function requireSeededBackend(
+  request: APIRequestContext
+): Promise<void> {
+  test.skip(!(await backendReachable(request)), `Backend unreachable at ${API_BASE}`);
+  test.skip(
+    !(await seededReaderReady(request)),
+    `Seeded reader missing — run: cd backend && php artisan db:seed`
+  );
+}
+
+/** Skip hook for author-only flows (wizard, dashboard, author profile edits). */
+export async function requireSeededAuthor(
+  request: APIRequestContext
+): Promise<void> {
+  await requireSeededBackend(request);
+  test.skip(
+    !(await seededAuthorReady(request)),
+    `Seeded author missing — run: cd backend && php artisan db:seed (or set PLAYWRIGHT_AUTHOR_EMAIL)`
+  );
 }
 
 /** Logs in via the API and returns the bearer token. */
@@ -147,4 +201,155 @@ export function collectPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
   return errors;
+}
+
+/** Clears persisted wizard state before opening /dashboard/books/new */
+export async function clearBookEditorStorage(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    try {
+      localStorage.removeItem('book-editor-storage');
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+export function uniqueE2eTitle(prefix = 'E2E'): string {
+  return `${prefix} ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, Accept: 'application/json' };
+}
+
+/** Creates a minimal draft book via API (author token required). */
+export async function apiCreateDraftBook(
+  request: APIRequestContext,
+  token: string,
+  opts: {
+    title: string;
+    sectionTitle?: string;
+    pageContent?: string;
+    categoryId?: number;
+  }
+): Promise<{ id: number; slug: string; title: string; sectionId: number; pageId: number }> {
+  let categoryId = opts.categoryId;
+  if (!categoryId) {
+    const catRes = await request.get(`${API_BASE}/api/categories`, {
+      headers: authHeaders(token),
+    });
+    expect(catRes.ok()).toBeTruthy();
+    const cats = (await catRes.json()).data ?? [];
+    categoryId = cats[0]?.id;
+    expect(categoryId, 'Need at least one category seeded').toBeTruthy();
+  }
+
+  const res = await request.post(`${API_BASE}/api/books/draft`, {
+    headers: authHeaders(token),
+    data: {
+      title: opts.title,
+      category_id: categoryId,
+      short_description: 'E2E draft',
+      sections: [
+        {
+          title: opts.sectionTitle ?? 'Bölüm 1',
+          order: 0,
+          is_visible: true,
+          pages: [{ content: opts.pageContent ?? '<p>E2E içerik</p>', order: 0 }],
+        },
+      ],
+    },
+  });
+  expect(res.ok(), `Draft create failed: ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  const book = body.data;
+  const section = book.sections?.[0];
+  const page = section?.pages?.[0];
+  expect(book?.id).toBeTruthy();
+  expect(section?.id).toBeTruthy();
+  expect(page?.id).toBeTruthy();
+  return {
+    id: book.id,
+    slug: book.slug || String(book.id),
+    title: book.title,
+    sectionId: section.id,
+    pageId: page.id,
+  };
+}
+
+export async function apiDeleteBook(
+  request: APIRequestContext,
+  token: string,
+  bookId: number
+): Promise<void> {
+  const res = await request.delete(`${API_BASE}/api/books/${bookId}`, {
+    headers: authHeaders(token),
+  });
+  expect(res.ok(), `Delete book ${bookId} failed: ${res.status()}`).toBeTruthy();
+}
+
+export async function apiBecomeAuthor(
+  request: APIRequestContext,
+  token: string
+): Promise<void> {
+  const res = await request.post(`${API_BASE}/api/user/become-author`, {
+    headers: authHeaders(token),
+  });
+  expect(res.ok(), `become-author failed: ${await res.text()}`).toBeTruthy();
+}
+
+/** Wait for a draft autosave network call after wizard edits. */
+export async function waitForDraftSave(
+  page: Page,
+  timeout = 30_000
+): Promise<void> {
+  await page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/books/draft') &&
+      r.request().method() === 'POST' &&
+      r.ok(),
+    { timeout }
+  );
+}
+
+export async function apiLogout(
+  request: APIRequestContext,
+  token: string
+): Promise<void> {
+  const res = await request.post(`${API_BASE}/api/logout`, {
+    headers: authHeaders(token),
+  });
+  expect(res.ok(), `Logout failed: ${res.status()}`).toBeTruthy();
+}
+
+/** Returns numeric user id from GET /api/user */
+export async function apiGetUserId(
+  request: APIRequestContext,
+  token: string
+): Promise<number> {
+  const res = await request.get(`${API_BASE}/api/user`, { headers: authHeaders(token) });
+  expect(res.ok()).toBeTruthy();
+  const body = await res.json();
+  const user = body.data?.user ?? body.data;
+  return user.id as number;
+}
+
+export async function apiPostComment(
+  request: APIRequestContext,
+  token: string,
+  opts: { bookId: number; content: string; parentId?: number }
+): Promise<{ id: number }> {
+  const res = await request.post(`${API_BASE}/api/comments`, {
+    headers: authHeaders(token),
+    data: {
+      book_id: opts.bookId,
+      content: opts.content,
+      ...(opts.parentId ? { parent_id: opts.parentId } : {}),
+    },
+  });
+  expect(res.ok(), `Comment post failed: ${await res.text()}`).toBeTruthy();
+  const body = await res.json();
+  const id = body.data?.id ?? body.id ?? body.data?.data?.id;
+  expect(id, 'Comment id missing from response').toBeTruthy();
+  return { id: id as number };
 }

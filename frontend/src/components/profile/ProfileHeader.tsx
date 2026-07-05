@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Calendar, Camera, Edit, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ProfileEditForm } from './ProfileEditForm'
+import { FollowButton } from './FollowButton'
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import type { User } from '@/types/auth'
 import { useAuth } from '@/features/auth'
@@ -204,7 +205,7 @@ export const ProfileHeader = ({
                     day: 'numeric' 
                   })} tarihinden beri üye
                 </p>
-                {isOwnProfile && (
+                {isOwnProfile ? (
                   <Button 
                     variant="outline" 
                     className="mt-4"
@@ -213,6 +214,8 @@ export const ProfileHeader = ({
                     <Edit className="mr-2 h-4 w-4" />
                     Profili Düzenle
                   </Button>
+                ) : (
+                  <FollowButton userId={Number(user.id)} className="mt-4" />
                 )}
               </div>
             )}

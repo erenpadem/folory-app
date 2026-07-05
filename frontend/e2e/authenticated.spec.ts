@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   API_BASE,
-  backendReachable,
+  requireSeededAuthor,
   expectNoAppCrash,
   getReadableBook,
   loginAs,
@@ -10,7 +10,7 @@ import {
 
 test.describe('Authenticated journeys (author)', () => {
   test.beforeEach(async ({ request }) => {
-    test.skip(!(await backendReachable(request)), `Backend unreachable at ${API_BASE}`);
+    await requireSeededAuthor(request);
   });
 
   test('dashboard renders stats, tabs and the author books', async ({ page, request }) => {

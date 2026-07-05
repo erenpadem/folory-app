@@ -1,7 +1,8 @@
 // components/book/BookHero.tsx
 'use client'
 
-import { Bookmark, Eye, Heart, MoreVertical, Play, Share2, Star, FlagIcon, UserIcon, TrashIcon } from "lucide-react"
+import { BookStarRating } from "./BookStarRating"
+import { Bookmark, Eye, Heart, MoreVertical, Play, Share2, FlagIcon, UserIcon, TrashIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -30,6 +31,7 @@ interface BookHeroProps {
   showFullDescription: boolean
   onToggleDescription: () => void
   resumeReading?: ReadingPosition | null
+  onRated?: () => void
 }
 
 export function BookHero({ 
@@ -41,6 +43,7 @@ export function BookHero({
   showFullDescription,
   onToggleDescription,
   resumeReading = null,
+  onRated,
 }: BookHeroProps) {
   const router = useRouter()
 
@@ -219,22 +222,12 @@ export function BookHero({
               <span className="tabular-nums">{book.readCount}</span>
               <span className="text-sm">okunma</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Star
-                className={`h-5 w-5 shrink-0 ${
-                  book.averageRating > 0
-                    ? 'text-yellow-500 fill-yellow-500'
-                    : 'text-muted-foreground'
-                }`}
-                aria-hidden
-              />
-              <span className="font-medium tabular-nums">
-                {book.averageRating.toFixed(1)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                ({book.ratingCount} değerlendirme)
-              </span>
-            </div>
+            <BookStarRating
+              bookId={book.id}
+              averageRating={book.averageRating}
+              ratingCount={book.ratingCount}
+              onRated={onRated}
+            />
             <div className="flex items-center gap-2">
               <Button
                 variant={isLiked ? "default" : "outline"}

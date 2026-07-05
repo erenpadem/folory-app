@@ -273,6 +273,9 @@ function restoreActiveSelectionAfterMerge(
   return remapped;
 }
 
+/** Paralel saveDraft çağrıları (İleri + autosave) negatif id ile çift bölüm oluşturmasın. */
+let saveDraftChain: Promise<void> = Promise.resolve();
+
 const initialState: BookEditorState = {
   currentStep: 1,
   bookInfo: {
@@ -339,7 +342,7 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
       ),
     })),
 
-  deleteSection: (id) =>
+  deleteSection: (id) => {
     set((state) => {
       const newSections = state.sections.filter((s) => s.id !== id);
       const newPages = { ...state.pages };
@@ -348,8 +351,13 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
         sections: newSections,
         pages: newPages,
         activeSectionId: state.activeSectionId === id ? null : state.activeSectionId,
+        pendingServerSync: true,
       };
-    }),
+    });
+    queueMicrotask(() => {
+      void get().saveDraft({ force: true });
+    });
+  },
 
   setActiveSection: (id) => set({ activeSectionId: id }),
 
@@ -480,6 +488,7 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
   },
 
   saveDraft: async (options?: { force?: boolean }) => {
+    const run = async () => {
     let state = get();
     let fingerprint = computeDraftFingerprint(state);
     if (
@@ -595,6 +604,11 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
         pendingServerSync: true,
       });
     }
+    };
+
+    const job = saveDraftChain.then(run);
+    saveDraftChain = job.catch(() => {});
+    await job;
   },
 
   reset: () => set(initialState),

@@ -1,45 +1,117 @@
-// components/book/CommentItem.tsx
 'use client'
 
-import { useState } from "react"
-import { ChevronDown, ChevronUp, Heart, MessageSquare } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { getInitials, getAvatarColor } from "@/lib/avatar-utils"
-import { CommentContent } from "../comment/CommentContent"
-import { MentionTextarea } from "../comment/MentionTextarea"
+import { useState } from 'react'
+import { ChevronDown, ChevronUp, Heart, MessageSquare, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
+import { CommentContent } from '../comment/CommentContent'
+import { MentionTextarea } from '../comment/MentionTextarea'
+import api from '@/shared/lib/api-client'
+import { useAuth } from '@/features/auth'
+import { useRouter } from 'next/navigation'
+import { buildLoginUrl, getCurrentReturnTo } from '@/lib/auth-redirect'
+import toast from 'react-hot-toast'
+
+export interface BookComment {
+  id: number
+  content?: string
+  text?: string
+  user?: { id?: number; name?: string; avatar?: string | null }
+  user_id?: number
+  book_id?: number
+  book?: { id?: number; slug?: string }
+  likes_count?: number
+  likes?: number
+  is_liked?: boolean
+  created_at?: string
+  date?: string
+  replies?: BookComment[]
+}
 
 interface CommentItemProps {
-  comment: {
-    id: string
-    user: string
-    avatar: string
-    text: string
-    date: string
-    likes: number
-    replies?: any[]
-    isExpanded?: boolean
-  }
+  comment: BookComment
+  bookId: number
   depth: number
+  onReplyPosted?: () => void
+}
+
+function displayName(comment: BookComment): string {
+  return comment.user?.name ?? 'Kullanıcı'
+}
+
+function displayDate(comment: BookComment): string {
+  if (comment.created_at) {
+    return new Date(comment.created_at).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+  return comment.date ?? 'Şimdi'
 }
 
 export function CommentItem({
   comment,
+  bookId,
   depth,
-  bookId
+  onReplyPosted,
 }: CommentItemProps) {
-  const [isExpanded, setIsExpanded] = useState(comment.isExpanded ?? true)
-  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [replyingTo, setReplyingTo] = useState<number | null>(null)
   const [replyContent, setReplyContent] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [likesCount, setLikesCount] = useState(comment.likes_count ?? comment.likes ?? 0)
+  const [isLiked, setIsLiked] = useState(Boolean(comment.is_liked))
 
-  const handleReplySubmit = (e: React.FormEvent) => {
+  const commentId = Number(comment.id)
+  const replies = comment.replies ?? []
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!replyContent.trim()) return
-    
-    // TODO: Call API to add reply
-    setReplyingTo(null)
-    setReplyContent('')
+
+    if (!isAuthenticated) {
+      router.push(buildLoginUrl({ returnTo: getCurrentReturnTo(), tab: 'register' }))
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      await api.post('/api/comments', {
+        book_id: bookId,
+        content: replyContent.trim(),
+        parent_id: commentId,
+      })
+      toast.success('Yanıtınız gönderildi')
+      setReplyingTo(null)
+      setReplyContent('')
+      onReplyPosted?.()
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Yanıt gönderilemedi'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleToggleLike = async () => {
+    if (!isAuthenticated) {
+      router.push(buildLoginUrl({ returnTo: getCurrentReturnTo(), tab: 'register' }))
+      return
+    }
+    try {
+      const res = await api.post(`/api/comments/${commentId}/like`)
+      setIsLiked(Boolean(res.data?.data?.liked))
+      setLikesCount(res.data?.data?.likes_count ?? likesCount)
+    } catch {
+      toast.error('Beğeni işlemi başarısız')
+    }
   }
 
   return (
@@ -48,31 +120,28 @@ export function CommentItem({
         className={`relative ${depth > 0 ? 'pl-6' : ''}`}
         style={{ marginLeft: depth > 0 ? '1.5rem' : '0' }}
       >
-        {/* Comment connection line */}
         {depth > 0 && (
-          <div className="absolute left-0 top-0 bottom-0 w-px bg-border transform -translate-x-1/2"></div>
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-border transform -translate-x-1/2" />
         )}
 
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={comment.avatar || comment.user?.avatar} />
-            <AvatarFallback className={getAvatarColor(comment.user || comment.user?.name || 'U')}>
-              {getInitials(comment.user || comment.user?.name || 'U')}
+            <AvatarImage src={comment.user?.avatar ?? undefined} />
+            <AvatarFallback className={getAvatarColor(displayName(comment))}>
+              {getInitials(displayName(comment))}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{comment.user || comment.user?.name || 'Kullanıcı'}</p>
-            <p className="text-sm text-muted-foreground">
-              {comment.date || comment.created_at || 'Şimdi'}
-            </p>
+            <p className="font-medium">{displayName(comment)}</p>
+            <p className="text-sm text-muted-foreground">{displayDate(comment)}</p>
           </div>
         </div>
 
         <div className={`pl-12 ${depth > 0 ? 'pl-6' : ''}`}>
           {comment.content ? (
-            <CommentContent 
-              content={comment.content} 
-              bookId={comment.book_id}
+            <CommentContent
+              content={comment.content}
+              bookId={bookId}
               bookSlug={comment.book?.slug}
             />
           ) : (
@@ -81,20 +150,25 @@ export function CommentItem({
         </div>
 
         <div className="pl-12 flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="gap-2">
-            <Heart className="h-4 w-4" />
-            {comment.likes}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`gap-2 ${isLiked ? 'text-primary' : ''}`}
+            onClick={() => void handleToggleLike()}
+          >
+            <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+            {likesCount}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             className="gap-2"
-            onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+            onClick={() => setReplyingTo(replyingTo === commentId ? null : commentId)}
           >
             <MessageSquare className="h-4 w-4" />
             Yanıtla
           </Button>
-          {comment.replies?.length ? (
+          {replies.length > 0 ? (
             <Button
               variant="ghost"
               size="sm"
@@ -109,54 +183,50 @@ export function CommentItem({
               ) : (
                 <>
                   <ChevronDown className="h-4 w-4" />
-                  {comment.replies.length} cevap
+                  {replies.length} cevap
                 </>
               )}
             </Button>
           ) : null}
         </div>
 
-        {/* Reply form */}
-        {replyingTo === comment.id && (
-          <form
-            onSubmit={handleReplySubmit}
-            className="pl-12 mt-2 space-y-2"
-          >
+        {replyingTo === commentId && (
+          <form onSubmit={(e) => void handleReplySubmit(e)} className="pl-12 mt-2 space-y-2">
             <MentionTextarea
               value={replyContent}
               onChange={setReplyContent}
               placeholder="Yanıtınızı yazın... @ ile etiketleyebilirsiniz"
-              bookId={bookId || comment.book_id}
+              bookId={bookId}
               className="bg-background"
             />
             <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setReplyingTo(null)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setReplyingTo(null)}>
                 İptal
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!replyContent.trim()}
-              >
-                Gönder
+              <Button type="submit" size="sm" disabled={!replyContent.trim() || submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    Gönderiliyor...
+                  </>
+                ) : (
+                  'Gönder'
+                )}
               </Button>
             </div>
           </form>
         )}
       </div>
 
-      {/* Nested replies */}
-      {comment.replies?.length && isExpanded && (
+      {replies.length > 0 && isExpanded && (
         <div className="pl-6">
-          {comment.replies.map((reply) => (
+          {replies.map((reply) => (
             <CommentItem
               key={reply.id}
               comment={reply}
+              bookId={bookId}
               depth={depth + 1}
+              onReplyPosted={onReplyPosted}
             />
           ))}
         </div>
@@ -166,4 +236,3 @@ export function CommentItem({
     </div>
   )
 }
-

@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Application\UseCases\Section\CreateSectionUseCase;
+use App\Application\UseCases\Section\DeleteSectionUseCase;
 use App\Application\UseCases\Section\UpdateSectionUseCase;
 use App\Application\UseCases\Page\CreatePageUseCase;
 use App\Application\UseCases\Page\DeletePageUseCase;
@@ -39,6 +40,7 @@ class BookController extends Controller
         private BookRepositoryInterface $bookRepository,
         private CreateSectionUseCase $createSectionUseCase,
         private UpdateSectionUseCase $updateSectionUseCase,
+        private DeleteSectionUseCase $deleteSectionUseCase,
         private CreatePageUseCase $createPageUseCase,
         private UpdatePageUseCase $updatePageUseCase,
         private DeletePageUseCase $deletePageUseCase,
@@ -371,6 +373,9 @@ class BookController extends Controller
 
             // Save sections and pages if provided
             if (isset($data['sections']) && is_array($data['sections'])) {
+                /** @var int[] $survivingSectionIds Payload’taki her bölümden sonra kalan bölüm id’leri */
+                $survivingSectionIds = [];
+
                 foreach ($data['sections'] as $sectionData) {
                     $sectionId = isset($sectionData['id']) ? $sectionData['id'] : null;
 
@@ -405,6 +410,8 @@ class BookController extends Controller
                     if (!$sectionId) {
                         continue;
                     }
+
+                    $survivingSectionIds[] = (int) $sectionId;
 
                     // Save pages for this section
                     if (isset($sectionData['pages']) && is_array($sectionData['pages'])) {
@@ -474,6 +481,15 @@ class BookController extends Controller
                             $this->deletePageUseCase->execute((int) $orphanId);
                         }
                     }
+                }
+
+                // Client removed sections locally: drop rows not produced by this payload pass
+                $orphanSectionQuery = \App\Models\Section::query()->where('book_id', $id);
+                if ($survivingSectionIds !== []) {
+                    $orphanSectionQuery->whereNotIn('id', $survivingSectionIds);
+                }
+                foreach ($orphanSectionQuery->pluck('id') as $orphanSectionId) {
+                    $this->deleteSectionUseCase->execute((int) $orphanSectionId);
                 }
             }
 

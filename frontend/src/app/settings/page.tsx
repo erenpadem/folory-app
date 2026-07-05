@@ -16,9 +16,7 @@ import {
   AppTabsContent,
 } from '@/components/ui/app-tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
-import { User, Mail, Lock, Bell, Shield, Image as ImageIcon, Save, X, Loader2, PenLine } from 'lucide-react'
+import { User, Mail, Lock, Shield, Image as ImageIcon, Save, X, Loader2, PenLine } from 'lucide-react'
 import Link from 'next/link'
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
 import api from '@/shared/lib/api-client'
@@ -53,11 +51,7 @@ export default function SettingsPage() {
   const [emailChangePendingFor, setEmailChangePendingFor] = useState<string | null>(null)
   const [emailChangeBusy, setEmailChangeBusy] = useState(false)
   
-  // Notification settings
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [commentReplies, setCommentReplies] = useState(true)
-  const [newBooks, setNewBooks] = useState(true)
-  
+  // Notification preferences — backend endpoint not yet available (MVP)
   useEffect(() => {
     if (!loading && !isAuthenticated && !user) {
       router.push('/auth/login?returnTo=/settings')
@@ -144,21 +138,6 @@ export default function SettingsPage() {
     },
   })
 
-  // Update notification settings mutation
-  const updateNotificationSettingsMutation = useMutation({
-    mutationFn: async (data: { email_notifications: boolean; comment_replies: boolean; new_books: boolean }) => {
-      // TODO: Implement notification settings API endpoint
-      const response = await api.put('/api/user/notification-settings', data)
-      return response.data
-    },
-    onSuccess: () => {
-      toast.success('Bildirim ayarları güncellendi')
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Bildirim ayarları güncellenirken bir hata oluştu')
-    },
-  })
-
   const handleUpdateProfile = () => {
     updateProfileMutation.mutate({
       name,
@@ -232,14 +211,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleUpdateNotificationSettings = () => {
-    updateNotificationSettingsMutation.mutate({
-      email_notifications: emailNotifications,
-      comment_replies: commentReplies,
-      new_books: newBooks,
-    })
-  }
-
   if (loading) {
     return (
       <div className="container py-8">
@@ -261,7 +232,7 @@ export default function SettingsPage() {
       </div>
 
       <AppTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <AppTabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
+        <AppTabsList className="grid w-full grid-cols-3 gap-1">
           <AppTabsTrigger value="profile">
             <User className="mr-2 h-4 w-4" />
             Profil
@@ -269,10 +240,6 @@ export default function SettingsPage() {
           <AppTabsTrigger value="account">
             <Lock className="mr-2 h-4 w-4" />
             Hesap
-          </AppTabsTrigger>
-          <AppTabsTrigger value="notifications">
-            <Bell className="mr-2 h-4 w-4" />
-            Bildirimler
           </AppTabsTrigger>
           <AppTabsTrigger value="privacy">
             <Shield className="mr-2 h-4 w-4" />
@@ -588,73 +555,6 @@ export default function SettingsPage() {
                 <Lock className="h-4 w-4 mr-2" />
                 {changePasswordMutation.isPending ? 'Değiştiriliyor...' : 'Şifre Değiştir'}
               </Button>
-            </CardContent>
-          </Card>
-        </AppTabsContent>
-
-        {/* Notification Settings */}
-        <AppTabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bildirim Ayarları</CardTitle>
-              <CardDescription>Hangi bildirimleri almak istediğinizi seçin</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">E-posta Bildirimleri</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Önemli güncellemeler için e-posta alın
-                  </p>
-                </div>
-                <Switch
-                  id="email-notifications"
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="comment-replies">Yorum Yanıtları</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Yorumlarınıza yanıt geldiğinde bildirim alın
-                  </p>
-                </div>
-                <Switch
-                  id="comment-replies"
-                  checked={commentReplies}
-                  onCheckedChange={setCommentReplies}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="new-books">Yeni Kitaplar</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Takip ettiğiniz yazarlar yeni kitap yayınladığında bildirim alın
-                  </p>
-                </div>
-                <Switch
-                  id="new-books"
-                  checked={newBooks}
-                  onCheckedChange={setNewBooks}
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleUpdateNotificationSettings}
-                  disabled={updateNotificationSettingsMutation.isPending}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {updateNotificationSettingsMutation.isPending ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </AppTabsContent>

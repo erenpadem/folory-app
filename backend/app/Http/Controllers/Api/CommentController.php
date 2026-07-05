@@ -22,8 +22,7 @@ class CommentController extends Controller
     public function index(int $bookId): JsonResponse
     {
         $comments = $this->commentRepository->findByBookId($bookId, 15);
-        
-        // Convert paginated models to entities for CommentResource
+
         $commentEntities = collect($comments->items())->map(function ($model) {
             try {
                 return $this->commentRepository->findById($model->id);
@@ -32,10 +31,14 @@ class CommentController extends Controller
                 return null;
             }
         })->filter();
-        
+
+        $data = $commentEntities
+            ->map(fn ($entity) => $this->commentToArrayWithReplies($entity))
+            ->values();
+
         return response()->json([
             'success' => true,
-            'data' => CommentResource::collection($commentEntities),
+            'data' => $data,
             'meta' => [
                 'current_page' => $comments->currentPage(),
                 'last_page' => $comments->lastPage(),
@@ -43,6 +46,21 @@ class CommentController extends Controller
                 'total' => $comments->total(),
             ]
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function commentToArrayWithReplies(\App\Domain\Comment\Entities\Comment $entity): array
+    {
+        $arr = (new CommentResource($entity))->resolve(request());
+        $replies = $this->commentRepository->findByParentId($entity->getId());
+        $arr['replies'] = collect($replies)
+            ->map(fn ($reply) => $this->commentToArrayWithReplies($reply))
+            ->values()
+            ->all();
+
+        return $arr;
     }
 
     /**

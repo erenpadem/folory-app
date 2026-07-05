@@ -19,33 +19,51 @@ class FollowController extends Controller
         private FollowRepositoryInterface $followRepository
     ) {}
 
+    public function check(int $followingId, Request $request): JsonResponse
+    {
+        $exists = $this->followRepository->findByFollowerIdAndFollowingId(
+            $request->user()->id,
+            $followingId
+        ) !== null;
+
+        return response()->json(['is_following' => $exists]);
+    }
+
     public function followers(int $userId): JsonResponse
     {
         $followers = $this->followRepository->findByFollowingId($userId, 15);
-        
+
+        $entities = collect($followers->items())
+            ->map(fn ($model) => $this->followRepository->findById($model->id))
+            ->filter();
+
         return response()->json([
-            'data' => FollowResource::collection($followers->items()),
+            'data' => FollowResource::collection($entities),
             'meta' => [
                 'current_page' => $followers->currentPage(),
                 'last_page' => $followers->lastPage(),
                 'per_page' => $followers->perPage(),
                 'total' => $followers->total(),
-            ]
+            ],
         ]);
     }
 
     public function following(int $userId): JsonResponse
     {
         $following = $this->followRepository->findByFollowerId($userId, 15);
-        
+
+        $entities = collect($following->items())
+            ->map(fn ($model) => $this->followRepository->findById($model->id))
+            ->filter();
+
         return response()->json([
-            'data' => FollowResource::collection($following->items()),
+            'data' => FollowResource::collection($entities),
             'meta' => [
                 'current_page' => $following->currentPage(),
                 'last_page' => $following->lastPage(),
                 'per_page' => $following->perPage(),
                 'total' => $following->total(),
-            ]
+            ],
         ]);
     }
 

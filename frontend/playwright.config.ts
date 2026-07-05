@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000';
+const apiURL = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:8081';
+const devPort = new URL(baseURL).port || '3000';
 // Allow running against an already-installed browser channel (e.g. system Chrome)
 // instead of the downloaded Chromium build. Useful when the Playwright browser
 // download is unavailable. Leave unset in CI to use the bundled Chromium.
@@ -25,13 +27,19 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: '**/book-wizard.spec.ts',
+      testIgnore: ['**/book-wizard.spec.ts', '**/author-dashboard.spec.ts'],
+      use: { ...devices['Desktop Chrome'], channel },
+    },
+    {
+      name: 'author-dashboard',
+      testMatch: '**/author-dashboard.spec.ts',
+      dependencies: ['chromium'],
       use: { ...devices['Desktop Chrome'], channel },
     },
     {
       name: 'book-wizard',
       testMatch: '**/book-wizard.spec.ts',
-      dependencies: ['chromium'],
+      dependencies: ['author-dashboard'],
       use: { ...devices['Desktop Chrome'], channel },
     },
   ],
@@ -42,5 +50,10 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: true,
         timeout: 120_000,
+        env: {
+          NEXT_PUBLIC_API_URL: apiURL,
+          NEXT_PUBLIC_SITE_URL: baseURL,
+          PORT: devPort,
+        },
       },
 });

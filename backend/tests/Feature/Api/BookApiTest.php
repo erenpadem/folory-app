@@ -226,6 +226,64 @@ class BookApiTest extends TestCase
         $this->assertStringContainsString('güncel', (string) $page->fresh()->content);
     }
 
+    public function test_save_draft_removes_sections_omitted_from_payload(): void
+    {
+        $author = $this->actingAuthor();
+        $category = Category::factory()->create();
+        $book = Book::factory()->draft()->create([
+            'author_id' => $author->id,
+            'category_id' => $category->id,
+            'title' => 'Silinen bölüm '.uniqid(),
+        ]);
+        $keep = Section::factory()->create([
+            'book_id' => $book->id,
+            'title' => 'Kalacak',
+            'order' => 0,
+        ]);
+        $remove = Section::factory()->create([
+            'book_id' => $book->id,
+            'title' => 'Silinecek',
+            'order' => 1,
+        ]);
+        Page::factory()->create([
+            'section_id' => $keep->id,
+            'content' => '<p>a</p>',
+            'order' => 0,
+        ]);
+        Page::factory()->create([
+            'section_id' => $remove->id,
+            'content' => '<p>b</p>',
+            'order' => 0,
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $response = $this->postJson('/api/books/draft/'.$book->id, [
+            'title' => $book->title,
+            'category_id' => $category->id,
+            'sections' => [
+                [
+                    'id' => $keep->id,
+                    'title' => 'Kalacak',
+                    'order' => 0,
+                    'is_visible' => true,
+                    'pages' => [
+                        [
+                            'id' => $keep->pages()->first()->id,
+                            'content' => '<p>a</p>',
+                            'order' => 0,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseMissing('sections', ['id' => $remove->id]);
+        $this->assertDatabaseHas('sections', ['id' => $keep->id]);
+        $response->assertJsonCount(1, 'data.sections');
+    }
+
     public function test_non_owner_cannot_update_or_delete_book(): void
     {
         $owner = $this->actingAuthor();

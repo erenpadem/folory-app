@@ -27,6 +27,7 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     artisan migrate --force --no-interaction
 fi
 
-artisan storage:link --force 2>/dev/null || true
+# Symlink needs write access to public/ — run as root (non-fatal if link already exists)
+php artisan storage:link --force 2>/dev/null || true
 
 exec "$@"

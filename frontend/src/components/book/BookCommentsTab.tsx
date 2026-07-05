@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CommentItem } from "./CommentItem"
+import { CommentItem, type BookComment } from "./CommentItem"
 import { MentionTextarea } from "../comment/MentionTextarea"
 import { BookEntity } from "@/features/books"
 import { useAuth } from "@/features/auth"
@@ -117,12 +117,15 @@ export function BookCommentsTab({ book }: BookCommentsTabProps) {
             Henüz yorum yapılmamış. İlk yorumu siz yapın!
           </p>
         ) : (
-          comments.map((comment: any) => (
+          comments.map((comment: BookComment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
-              depth={0}
               bookId={book.id}
+              depth={0}
+              onReplyPosted={() =>
+                queryClient.invalidateQueries({ queryKey: ['book-comments', book.id] })
+              }
             />
           ))
         )}

@@ -1,15 +1,18 @@
 import { test, expect } from '@playwright/test';
 import {
   API_BASE,
-  backendReachable,
+  requireSeededAuthor,
+  clearBookEditorStorage,
   expectNoAppCrash,
   loginAs,
   SEEDED_AUTHOR,
+  uniqueE2eTitle,
+  waitForDraftSave,
 } from './helpers';
 
 /** Unique title so parallel runs and re-runs do not collide. */
 function uniqueBookTitle(): string {
-  return `E2E Sihirbaz ${Date.now()}`;
+  return uniqueE2eTitle('E2E Sihirbaz');
 }
 
 test.describe('Book creation wizard (author)', () => {
@@ -18,7 +21,7 @@ test.describe('Book creation wizard (author)', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ request }) => {
-    test.skip(!(await backendReachable(request)), `Backend unreachable at ${API_BASE}`);
+    await requireSeededAuthor(request);
   });
 
   /** Navigate from write step (4) to publish step (5). */
@@ -73,14 +76,7 @@ test.describe('Book creation wizard (author)', () => {
 
     await loginAs(page, request, SEEDED_AUTHOR);
 
-    // Clear any persisted wizard state before opening a fresh book session.
-    await page.addInitScript(() => {
-      try {
-        localStorage.removeItem('book-editor-storage');
-      } catch {
-        /* ignore */
-      }
-    });
+    await clearBookEditorStorage(page);
 
     await page.goto('/dashboard/books/new');
 
@@ -223,5 +219,72 @@ test.describe('Book creation wizard (author)', () => {
     const draft = (body.data ?? []).find((b: { title: string }) => b.title === title);
     expect(draft, `Draft "${title}" not in /api/books/me`).toBeTruthy();
     expect(draft.is_draft).toBeTruthy();
+  });
+
+  test('deleting a section persists after autosave (no zombie sections)', async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueBookTitle();
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await clearBookEditorStorage(page);
+    await page.goto('/dashboard/books/new');
+    await expect(page.getByLabel('Kitap Başlığı *')).toBeVisible({ timeout: 30_000 });
+
+    await completeBookInfoStep(page, title, 'Bölüm silme testi.');
+
+    const sectionInput = page.getByPlaceholder('Bölüm başlığı');
+    await sectionInput.fill('Kalacak Bölüm');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await sectionInput.fill('Silinecek Bölüm');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await expect(page.getByText('Bölümler (2)')).toBeVisible();
+
+    // Delete second section (trash is visible on row hover).
+    const doomedRow = page.locator('.group.relative').filter({ hasText: 'Silinecek Bölüm' });
+    await doomedRow.hover();
+    await doomedRow.locator('button.text-destructive').click();
+
+    await expect(page.getByText('Bölümler (1)')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Silinecek Bölüm')).toHaveCount(0);
+
+    const savePromise = waitForDraftSave(page);
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await savePromise;
+
+    // Go back to sections — deleted section must not reappear from server sync.
+    await page.getByRole('button', { name: 'Geri' }).click();
+    await expect(page.getByText('Bölümlerinizi oluşturun')).toBeVisible();
+    await expect(page.getByText('Bölümler (1)')).toBeVisible();
+    await expect(page.getByText('Silinecek Bölüm')).toHaveCount(0);
+    await expect(page.getByText('Kalacak Bölüm')).toBeVisible();
+  });
+
+  test('advancing steps does not duplicate a single section', async ({ page, request }) => {
+    const title = uniqueBookTitle();
+
+    await loginAs(page, request, SEEDED_AUTHOR);
+    await clearBookEditorStorage(page);
+    await page.goto('/dashboard/books/new');
+    await expect(page.getByLabel('Kitap Başlığı *')).toBeVisible({ timeout: 30_000 });
+
+    await completeBookInfoStep(page, title, 'Çift bölüm önleme.');
+
+    await page.getByPlaceholder('Bölüm başlığı').fill('Tek Bölüm');
+    await page.getByRole('button', { name: 'Ekle' }).click();
+    await expect(page.getByText('Bölümler (1)')).toBeVisible();
+
+    const savePromise = waitForDraftSave(page);
+    await page.getByRole('button', { name: 'İleri' }).click();
+    await savePromise;
+
+    await expect(
+      page.getByText(/Her bölüm için sayfaları oluşturun/)
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Geri' }).click();
+    await expect(page.getByText('Bölümler (1)')).toBeVisible();
+    await expect(page.getByText('Tek Bölüm')).toHaveCount(1);
   });
 });

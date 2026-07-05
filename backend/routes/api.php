@@ -120,6 +120,7 @@ Route::prefix('ratings')->group(function () {
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/book/{bookId}/mine', [RatingController::class, 'mine']);
         Route::post('/', [RatingController::class, 'store']);
     });
 });
@@ -168,6 +169,7 @@ Route::prefix('bookmarks')->middleware('auth:sanctum')->group(function () {
 
 // Follow API Routes
 Route::prefix('follows')->middleware('auth:sanctum')->group(function () {
+    Route::get('/check/{followingId}', [FollowController::class, 'check']);
     Route::get('/{userId}/followers', [FollowController::class, 'followers']);
     Route::get('/{userId}/following', [FollowController::class, 'following']);
     Route::post('/', [FollowController::class, 'store']);

@@ -38,6 +38,22 @@ test.describe('Book detail', () => {
     expect(page.url()).toContain('/read/');
   });
 
+  test('book tabs switch content (Kitap / Bölümler / Yorumlar)', async ({ page, request }) => {
+    const book = await getReadableBook(request);
+    test.skip(!book, 'No readable book seeded');
+
+    await page.goto(`/book/${book!.slug}`);
+    await expect(page.getByRole('tab', { name: 'Kitap' })).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('tab', { name: 'Bölümler' }).click();
+    await expect(page.getByText(/Bölüm|Sayfa/i).first()).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('tab', { name: /Yorumlar/ }).click();
+    await expect(
+      page.getByPlaceholder(/Yorumunuzu yazın|yorum/i).or(page.getByText(/Henüz yorum/i))
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
   test('book tabs (about / chapters / comments) are present', async ({ page, request }) => {
     const book = await getReadableBook(request);
     test.skip(!book, 'No readable book seeded');

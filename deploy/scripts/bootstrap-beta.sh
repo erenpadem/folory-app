@@ -64,7 +64,11 @@ fi
 echo "Beta başlatılıyor..."
 $COMPOSE up -d postgres redis
 sleep 5
-$COMPOSE up -d api frontend worker edge
+$COMPOSE up -d api frontend worker
+sleep 3
+$COMPOSE up -d edge
+# Edge must start after api — nginx caches upstream IPs unless using variable proxy_pass
+docker exec folory-beta-edge nginx -s reload 2>/dev/null || true
 
 echo ""
 echo "Beta hazır: http://${HTTP_BIND}:${HTTP_PORT}"

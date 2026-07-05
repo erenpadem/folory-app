@@ -47,6 +47,19 @@ class RatingController extends Controller
         ]);
     }
 
+    /**
+     * Authenticated user's rating for a book (if any).
+     */
+    public function mine(Request $request, int $bookId): JsonResponse
+    {
+        $rating = $this->ratingRepository->findByUserIdAndBookId($request->user()->id, $bookId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $rating ? ['score' => $rating->getScore()] : null,
+        ]);
+    }
+
     public function store(StoreRatingRequest $request): JsonResponse
     {
         $data = $request->validated();

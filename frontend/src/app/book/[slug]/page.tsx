@@ -175,6 +175,7 @@ export default function BookDetailPage() {
                 showFullDescription={showFullDescription}
                 onToggleDescription={() => setShowFullDescription(!showFullDescription)}
                 resumeReading={resolvedResume}
+                onRated={() => queryClient.invalidateQueries({ queryKey: ['book', slug] })}
             />
 
             <BookTabs
