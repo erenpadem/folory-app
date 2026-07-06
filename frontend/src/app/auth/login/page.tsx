@@ -51,7 +51,7 @@ export default function LoginPage() {
       await login({
         email: values.email,
         password: values.password,
-        remember: values.remember ?? false,
+        remember: Boolean(values.remember),
       })
       toast.success('Giriş başarılı! Yönlendiriliyorsunuz...')
       // Redirect will be handled by useEffect

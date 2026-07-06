@@ -74,7 +74,14 @@ export function AuthForm({
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(formSchemas[type] as never) as Resolver<AuthFormValues>,
-    defaultValues: defaultValues[type]
+    defaultValues: defaultValues[type],
+    shouldUnregister: false,
+  })
+
+  const resolveLoginValues = (values: AuthFormValues): LoginType => ({
+    email: (values as LoginType).email,
+    password: (values as LoginType).password,
+    remember: form.getValues('remember') === true,
   })
 
   const handleSubmit = async (values: AuthFormValues) => {
@@ -82,9 +89,11 @@ export function AuthForm({
     submitInFlight.current = true
 
     try {
+      const loginValues = type === 'login' ? resolveLoginValues(values) : null
+
       // If onSubmit prop is provided, use it
       if (onSubmit) {
-        await onSubmit(values)
+        await onSubmit(loginValues ?? values)
         onSuccess?.()
         if (redirectOnSuccess) {
           router.push(redirectOnSuccess)
@@ -94,7 +103,7 @@ export function AuthForm({
 
       // Otherwise use default auth methods
       if (type === 'login') {
-        await login(values as LoginType)
+        await login(loginValues!)
         toast.success('Giriş başarılı!')
       } 
       else if (type === 'register') {
@@ -216,18 +225,17 @@ export function AuthForm({
             control={form.control}
             name="remember"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                <FormControl>
+              <FormItem>
+                <label className="flex cursor-pointer select-none items-center gap-3">
                   <Checkbox
                     checked={field.value === true}
                     onCheckedChange={(checked) => field.onChange(checked === true)}
+                    onBlur={field.onBlur}
+                    disabled={loading}
+                    aria-label="Beni hatırla"
                   />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm font-normal cursor-pointer">
-                    Beni hatırla
-                  </FormLabel>
-                </div>
+                  <span className="text-sm font-normal leading-none">Beni hatırla</span>
+                </label>
               </FormItem>
             )}
           />

@@ -7,13 +7,13 @@ import {
 } from '@/lib/validations/auth';
 
 describe('auth validation schemas', () => {
-  it('LoginSchema accepts valid credentials', () => {
+  it('LoginSchema preserves remember=true', () => {
     const parsed = LoginSchema.parse({
       email: 'a@b.com',
       password: 'secret1',
-      remember: false,
+      remember: true,
     });
-    expect(parsed.email).toBe('a@b.com');
+    expect(parsed.remember).toBe(true);
   });
 
   it('RegisterSchema rejects mismatched passwords', () => {

@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const LoginSchema = z.object({
   email: z.string().min(1, 'E-posta alanı zorunludur').email('Geçerli bir e-posta adresi giriniz'),
   password: z.string().min(1, 'Şifre alanı zorunludur').min(6, 'Şifre en az 6 karakter olmalıdır'),
-  remember: z.boolean().optional().default(false),
+  remember: z.boolean(),
 });
 
 export type LoginCredentials = z.infer<typeof LoginSchema>;
