@@ -10,23 +10,32 @@ export interface CommentTag {
   href?: string
 }
 
+export type CommentTagLinkMap = Record<string, string>
+
+export type CommentTagContext = {
+  bookSlug?: string
+  tagLinks?: CommentTagLinkMap
+}
+
 /**
  * Parse comment content and extract tags
  * Format: @book{id}, @section{id}, @page{id}, @author{id}
  */
-export function parseCommentTags(content: string): CommentTag[] {
+export function parseCommentTags(
+  content: string,
+  context: CommentTagContext = {}
+): CommentTag[] {
   const tags: CommentTag[] = []
   let lastIndex = 0
 
-  // Regex to match @type{id} or @type{id}text
   const tagRegex = /@(book|section|page|author)\{(\d+)\}([^@]*?)(?=@|$)/g
   let match
 
   while ((match = tagRegex.exec(content)) !== null) {
-    const [fullMatch, type, id, text] = match
+    const [, type, id, text] = match
     const startIndex = match.index
+    const numericId = parseInt(id, 10)
 
-    // Add text before tag
     if (startIndex > lastIndex) {
       const textBefore = content.substring(lastIndex, startIndex)
       if (textBefore.trim()) {
@@ -37,18 +46,21 @@ export function parseCommentTags(content: string): CommentTag[] {
       }
     }
 
-    // Add tag
+    const tagType = type as 'book' | 'section' | 'page' | 'author'
+    const linkKey = `${tagType}:${numericId}`
+
     tags.push({
-      type: type as 'book' | 'section' | 'page' | 'author',
-      id: parseInt(id),
+      type: tagType,
+      id: numericId,
       content: text.trim() || `${type} ${id}`,
-      href: getTagHref(type as 'book' | 'section' | 'page' | 'author', parseInt(id)),
+      href:
+        context.tagLinks?.[linkKey] ??
+        getFallbackTagHref(tagType, numericId, context.bookSlug),
     })
 
     lastIndex = tagRegex.lastIndex
   }
 
-  // Add remaining text
   if (lastIndex < content.length) {
     const remainingText = content.substring(lastIndex)
     if (remainingText.trim()) {
@@ -59,7 +71,6 @@ export function parseCommentTags(content: string): CommentTag[] {
     }
   }
 
-  // If no tags found, return entire content as text
   if (tags.length === 0) {
     tags.push({
       type: 'text',
@@ -70,34 +81,28 @@ export function parseCommentTags(content: string): CommentTag[] {
   return tags
 }
 
-/**
- * Get href for a tag based on type and id
- */
-function getTagHref(
+function getFallbackTagHref(
   type: 'book' | 'section' | 'page' | 'author',
-  id: number
-): string {
+  id: number,
+  bookSlug?: string
+): string | undefined {
   switch (type) {
     case 'book':
-      return `/book/${id}`
-    case 'section':
-      // Section links need book context, so we'll need to handle this differently
-      return `#section-${id}`
-    case 'page':
-      // Page links need book and section context
-      return `#page-${id}`
+      return `/book/${bookSlug ?? id}`
     case 'author':
       return `/profile/${id}`
+    case 'section':
+      return bookSlug ? `/book/${bookSlug}` : undefined
+    case 'page':
+      return bookSlug ? `/book/${bookSlug}` : undefined
     default:
-      return '#'
+      return undefined
   }
 }
 
-/**
- * Format comment content with tags for display
- * This creates a format that can be easily rendered
- */
-export function formatCommentWithTags(content: string): CommentTag[] {
-  return parseCommentTags(content)
+export function formatCommentWithTags(
+  content: string,
+  context?: CommentTagContext
+): CommentTag[] {
+  return parseCommentTags(content, context)
 }
-

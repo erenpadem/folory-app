@@ -323,6 +323,7 @@ export default function DashboardPage() {
                         bookId={item.book.id}
                         depth={0}
                         onReplyPosted={() => void refetchComments()}
+                        onLikeUpdated={() => void refetchComments()}
                       />
                     ))}
                   </div>

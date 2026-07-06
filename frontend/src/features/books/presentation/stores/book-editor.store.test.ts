@@ -109,14 +109,16 @@ describe('useBookEditorStore', () => {
     expect(s.validateStep(3)).toBe(true);
   });
 
-  it('validateStep 4 mirrors step 3; validateStep 5 is always true', () => {
+  it('validateStep 4 and 5 require written content on every page', () => {
     const s = useBookEditorStore.getState();
     const now = new Date();
     s.updateBookInfo({ title: 'Kitap', categoryId: 1 });
     s.addSection(new SectionEntity(-1, 0, 'B1', 0, 0, true, now, now, []));
-    s.addPage(-1, new PageEntity(-2, -1, '<p>x</p>', 0, now, now));
+    s.addPage(-1, new PageEntity(-2, -1, '', 0, now, now));
+    expect(s.validateStep(4)).toBe(false);
+    expect(s.validateStep(5)).toBe(false);
+    s.updatePage(-1, -2, new PageEntity(-2, -1, '<p>x</p>', 0, now, now));
     expect(s.validateStep(4)).toBe(true);
-    s.setCurrentStep(5);
     expect(s.validateStep(5)).toBe(true);
   });
 

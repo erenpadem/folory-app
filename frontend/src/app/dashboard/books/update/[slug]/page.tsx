@@ -105,6 +105,9 @@ export default function UpdateBookPage() {
       const step = parseInt(stepParam, 10);
       if (step >= 1 && step <= 5) {
         setCurrentStep(step);
+        if (step === 4) {
+          queueMicrotask(() => useBookEditorStore.getState().ensureDefaultActivePage());
+        }
       }
       return;
     }

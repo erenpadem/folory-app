@@ -26,6 +26,7 @@ export function PagesWriteStep() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const saveDraft = useBookEditorStore((s) => s.saveDraft);
+  const ensureDefaultActivePage = useBookEditorStore((s) => s.ensureDefaultActivePage);
   const currentStep = useBookEditorStore((s) => s.currentStep);
   const {
     sections,
@@ -40,6 +41,11 @@ export function PagesWriteStep() {
     nextStep,
   } = useBookEditorStore();
   const canAdvanceWizard = useBookEditorStore((s) => s.validateStep(s.currentStep));
+
+  useEffect(() => {
+    if (currentStep !== 4 || sections.length === 0) return;
+    ensureDefaultActivePage();
+  }, [currentStep, sections, pages, ensureDefaultActivePage]);
 
   const isWizardPath =
     pathname?.startsWith('/dashboard/books/update/') || pathname === '/dashboard/books/new';

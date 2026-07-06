@@ -19,6 +19,11 @@ import { BookEntity } from "@/features/books"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import type { ReadingPosition } from "@/lib/book-reading-progress"
+import { pageHasWrittenContent } from "@/lib/page-content"
+
+function readablePages(section: BookEntity['sections'][number]) {
+  return section.pages.filter((page) => pageHasWrittenContent(page.content))
+}
 
 interface BookHeroProps {
   book: BookEntity
@@ -60,10 +65,10 @@ export function BookHero({
     }
     const ordered = [...book.sections].sort((a, b) => a.order - b.order)
     const firstReadable =
-      ordered.find((s) => s.isVisible && s.pages.length > 0) ||
-      ordered.find((s) => s.pages.length > 0)
-    if (firstReadable && firstReadable.pages.length > 0) {
-      const firstPage = firstReadable.pages[0]
+      ordered.find((s) => s.isVisible && readablePages(s).length > 0) ||
+      ordered.find((s) => readablePages(s).length > 0)
+    const firstPage = firstReadable ? readablePages(firstReadable)[0] : undefined
+    if (firstReadable && firstPage) {
       router.push(`/book/${bookSlug}/read/${firstReadable.id}/${firstPage.id}`)
     }
   }
@@ -93,7 +98,10 @@ export function BookHero({
 
   /** Reader-facing counts: only visible sections */
   const visibleSections = book.sections.filter((s) => s.isVisible)
-  const totalPages = visibleSections.reduce((total, section) => total + section.pages.length, 0)
+  const totalPages = visibleSections.reduce(
+    (total, section) => total + readablePages(section).length,
+    0
+  )
 
   return (
     <div className="container pb-8">

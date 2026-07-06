@@ -7,6 +7,8 @@ use App\Domain\Book\Repositories\BookRepositoryInterface;
 use App\Domain\Section\Repositories\SectionRepositoryInterface;
 use App\Domain\Page\Repositories\PageRepositoryInterface;
 
+use App\Support\PageContent;
+
 class PublishBookUseCase
 {
     public function __construct(
@@ -34,6 +36,11 @@ class PublishBookUseCase
             $pages = $this->pageRepository->findBySectionId($section->getId());
             if (empty($pages)) {
                 throw new \Exception('All sections must have at least one page before publishing');
+            }
+            foreach ($pages as $page) {
+                if (! PageContent::hasWrittenContent($page->getContent())) {
+                    throw new \Exception('Boş sayfa içeren kitaplar yayınlanamaz. Lütfen tüm sayfaları doldurun.');
+                }
             }
             $totalPages += count($pages);
         }

@@ -1,8 +1,8 @@
 import { cache } from "react"
 import type { Metadata } from "next"
-import { getUserByUsername } from "@/services/user.service"
+import { getUserById, getUserByUsername } from "@/services/user.service"
 import { ProfileView } from "@/components/profile/ProfileView"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { getAbsoluteMediaUrl, getSiteUrl } from "@/lib/site"
 import { BRAND_NAME } from "@/lib/brand"
 
@@ -57,14 +57,33 @@ export async function generateMetadata({
   }
 }
 
+async function resolveProfileUser(username: string) {
+  const byUsername = await getCachedUserByUsername(username)
+  if (byUsername) {
+    return byUsername
+  }
+
+  if (/^\d+$/.test(username)) {
+    const byId = await getUserById(Number(username))
+    if (byId?.username) {
+      redirect(`/profile/${encodeURIComponent(byId.username)}`)
+    }
+    if (byId) {
+      return byId
+    }
+  }
+
+  return null
+}
+
 export default async function PublicProfile({
   params,
 }: {
   params: Promise<{ username: string }>
 }) {
   const { username } = await params
-  const user = await getCachedUserByUsername(username)
-  
+  const user = await resolveProfileUser(username)
+
   if (!user) {
     return notFound()
   }

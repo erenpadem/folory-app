@@ -14,6 +14,20 @@ import {
   remapClientSectionIdsFromServer,
 } from '../utils/book-editor-draft-sync';
 import { queryClient } from '@/shared/lib/query-client';
+import { pageHasWrittenContent } from '@/lib/page-content';
+
+function sectionPagesHaveWrittenContent(
+  sections: SectionEntity[],
+  pages: Record<number, PageEntity[]>
+): boolean {
+  return sections.every((section) => {
+    const sectionPages = getWizardSectionPages(section, pages);
+    return (
+      sectionPages.length > 0 &&
+      sectionPages.every((page) => pageHasWrittenContent(page.content))
+    );
+  });
+}
 
 interface BookEditorState {
   // Current step in wizard
@@ -321,6 +335,9 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
   setCurrentStep: (step) => {
     const s = Math.min(5, Math.max(1, step));
     set({ currentStep: s });
+    if (s === 4) {
+      get().ensureDefaultActivePage();
+    }
   },
 
   nextStep: () => {
@@ -537,6 +554,7 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
       pendingServerSync: false,
       lastSyncedDraftFingerprint: nextFingerprint,
     });
+    get().ensureDefaultActivePage();
   },
 
   saveDraft: async (options?: { force?: boolean }) => {
@@ -753,12 +771,8 @@ export const useBookEditorStore = create<BookEditorState & BookEditorActions>()(
             getWizardSectionPages(section, state.pages).length > 0
         );
       case 4:
-        return state.sections.every(
-          (section) =>
-            getWizardSectionPages(section, state.pages).length > 0
-        );
       case 5:
-        return true;
+        return sectionPagesHaveWrittenContent(state.sections, state.pages);
       default:
         return false;
     }

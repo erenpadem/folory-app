@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Book as BookModel;
 use App\Models\Comment as CommentModel;
 use App\Models\User as UserModel;
+use App\Support\MentionLinkResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,8 +31,9 @@ class CommentResource extends JsonResource
                 $model = CommentModel::find($commentId);
                 if ($model) {
                     $likesCount = $model->likesCount();
-                    if (auth()->check()) {
-                        $isLiked = $model->isLikedBy((int) auth()->id());
+                    $user = $request->user('sanctum') ?? auth('sanctum')->user();
+                    if ($user) {
+                        $isLiked = $model->isLikedBy((int) $user->id);
                     }
                 }
             }
@@ -50,6 +52,10 @@ class CommentResource extends JsonResource
             'sections' => $this->resource->getSections(),
             'pages' => $this->resource->getPages(),
             'authors' => $this->resource->getAuthors(),
+            'tag_links' => MentionLinkResolver::buildLinkMap(
+                (string) $this->resource->getContent(),
+                $this->resource->getBookId()
+            ),
             'book' => $book,
             'user' => $user,
             'likes_count' => $likesCount,

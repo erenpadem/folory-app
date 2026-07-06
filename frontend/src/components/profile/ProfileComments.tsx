@@ -31,6 +31,7 @@ interface Comment {
     avatar?: string
   }
   created_at: string
+  tag_links?: Record<string, string>
 }
 
 export const ProfileComments = ({ userId, isOwnProfile }: ProfileCommentsProps) => {
@@ -91,8 +92,8 @@ export const ProfileComments = ({ userId, isOwnProfile }: ProfileCommentsProps) 
             </div>
             <CommentContent
               content={comment.content}
-              bookId={comment.book_id}
               bookSlug={comment.book?.slug}
+              tagLinks={comment.tag_links}
             />
           </CardContent>
         </Card>

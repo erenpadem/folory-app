@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\PageContent;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Infrastructure\Persistence\Eloquent\Section\EloquentSectionRepository;
@@ -122,6 +123,15 @@ class BookResource extends JsonResource
                     }
 
                     $pages = $pageRepository->findBySectionId($section->getId());
+                    if (! $viewerIsAuthor) {
+                        $pages = array_values(array_filter(
+                            $pages,
+                            fn ($page) => PageContent::hasWrittenContent($page->getContent())
+                        ));
+                        if ($pages === []) {
+                            continue;
+                        }
+                    }
                     $sections[] = [
                         'id' => $section->getId(),
                         'book_id' => $section->getBookId(),

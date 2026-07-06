@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { SectionEntity } from "@/features/books"
 import { BookOpen, ChevronRight } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { pageHasWrittenContent } from "@/lib/page-content"
 
 interface SectionItemProps {
   section: SectionEntity
@@ -11,11 +11,11 @@ interface SectionItemProps {
 }
 
 export function SectionItem({ section, onSelect }: SectionItemProps) {
-  const router = useRouter()
+  const readable = section.pages.filter((page) => pageHasWrittenContent(page.content))
 
   const handleClick = () => {
-    if (section.pages.length > 0) {
-      onSelect(section.pages[0].id)
+    if (readable.length > 0) {
+      onSelect(readable[0]!.id)
     }
   }
 
@@ -31,7 +31,7 @@ export function SectionItem({ section, onSelect }: SectionItemProps) {
         <div className="flex-1">
           <p className="font-medium">{section.title}</p>
           <p className="text-sm text-muted-foreground">
-            {section.pages.length} sayfa
+            {readable.length} sayfa
           </p>
         </div>
       </div>

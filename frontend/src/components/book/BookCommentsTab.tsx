@@ -124,6 +124,9 @@ export function BookCommentsTab({ book }: BookCommentsTabProps) {
               onReplyPosted={() =>
                 queryClient.invalidateQueries({ queryKey: ['book-comments', book.id] })
               }
+              onLikeUpdated={() =>
+                queryClient.invalidateQueries({ queryKey: ['book-comments', book.id] })
+              }
             />
           ))
         )}

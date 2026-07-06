@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp, Heart, MessageSquare, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -14,6 +14,7 @@ import { useAuth } from '@/features/auth'
 import { useRouter } from 'next/navigation'
 import { buildLoginUrl, getCurrentReturnTo } from '@/lib/auth-redirect'
 import toast from 'react-hot-toast'
+import { toggleCommentLike } from '@/lib/comment-like-api'
 
 export interface BookComment {
   id: number
@@ -23,6 +24,7 @@ export interface BookComment {
   user_id?: number
   book_id?: number
   book?: { id?: number; slug?: string }
+  tag_links?: Record<string, string>
   likes_count?: number
   likes?: number
   is_liked?: boolean
@@ -36,6 +38,7 @@ interface CommentItemProps {
   bookId: number
   depth: number
   onReplyPosted?: () => void
+  onLikeUpdated?: () => void
 }
 
 function displayName(comment: BookComment): string {
@@ -62,6 +65,7 @@ export function CommentItem({
   bookId,
   depth,
   onReplyPosted,
+  onLikeUpdated,
 }: CommentItemProps) {
   const { isAuthenticated } = useAuth()
   const router = useRouter()
@@ -71,6 +75,12 @@ export function CommentItem({
   const [submitting, setSubmitting] = useState(false)
   const [likesCount, setLikesCount] = useState(comment.likes_count ?? comment.likes ?? 0)
   const [isLiked, setIsLiked] = useState(Boolean(comment.is_liked))
+  const [liking, setLiking] = useState(false)
+
+  useEffect(() => {
+    setLikesCount(comment.likes_count ?? comment.likes ?? 0)
+    setIsLiked(Boolean(comment.is_liked))
+  }, [comment.likes_count, comment.likes, comment.is_liked])
 
   const commentId = Number(comment.id)
   const replies = comment.replies ?? []
@@ -110,12 +120,33 @@ export function CommentItem({
       router.push(buildLoginUrl({ returnTo: getCurrentReturnTo(), tab: 'register' }))
       return
     }
+    if (!Number.isFinite(commentId) || commentId <= 0) {
+      toast.error('Geçersiz yorum')
+      return
+    }
+    if (liking) return
+
+    const prevLiked = isLiked
+    const prevCount = likesCount
+    const nextLiked = !prevLiked
+    setLiking(true)
+    setIsLiked(nextLiked)
+    setLikesCount(Math.max(0, prevCount + (nextLiked ? 1 : -1)))
+
     try {
-      const res = await api.post(`/api/comments/${commentId}/like`)
-      setIsLiked(Boolean(res.data?.data?.liked))
-      setLikesCount(res.data?.data?.likes_count ?? likesCount)
-    } catch {
-      toast.error('Beğeni işlemi başarısız')
+      const result = await toggleCommentLike(commentId)
+      setIsLiked(result.liked)
+      setLikesCount(result.likes_count)
+      onLikeUpdated?.()
+    } catch (error: unknown) {
+      setIsLiked(prevLiked)
+      setLikesCount(prevCount)
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || 'Beğeni işlemi başarısız'
+      toast.error(message)
+    } finally {
+      setLiking(false)
     }
   }
 
@@ -146,8 +177,8 @@ export function CommentItem({
           {comment.content ? (
             <CommentContent
               content={comment.content}
-              bookId={bookId}
               bookSlug={comment.book?.slug}
+              tagLinks={comment.tag_links}
             />
           ) : (
             <p>{comment.text}</p>
@@ -159,6 +190,7 @@ export function CommentItem({
             variant="ghost"
             size="sm"
             className={`gap-2 ${isLiked ? 'text-primary' : ''}`}
+            disabled={liking}
             onClick={() => void handleToggleLike()}
           >
             <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -232,6 +264,7 @@ export function CommentItem({
               bookId={bookId}
               depth={depth + 1}
               onReplyPosted={onReplyPosted}
+              onLikeUpdated={onLikeUpdated}
             />
           ))}
         </div>

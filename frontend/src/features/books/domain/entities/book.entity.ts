@@ -3,6 +3,7 @@
  * Represents the core book domain model with business logic
  */
 import { SectionEntity } from './section.entity';
+import { pageHasWrittenContent } from '@/lib/page-content';
 
 export class BookEntity {
   constructor(
@@ -32,22 +33,16 @@ export class BookEntity {
     return (
       this.title.length > 0 &&
       this.sections.length > 0 &&
-      this.sections.every((section) => section.pages.length > 0)
+      this.sections.every(
+        (section) =>
+          section.pages.length > 0 &&
+          section.pages.every((page) => pageHasWrittenContent(page.content))
+      )
     );
   }
 
   get totalSections(): number {
     return this.sections.length;
-  }
-
-  private static pageHasWrittenContent(html: string | undefined): boolean {
-    if (!html || !String(html).trim()) return false;
-    const t = String(html)
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return t.length > 0;
   }
 
   /**
@@ -62,7 +57,7 @@ export class BookEntity {
       if (section.pages.length === 0) return 3;
     }
     const anyPageEmpty = this.sections.some((s) =>
-      s.pages.some((p) => !BookEntity.pageHasWrittenContent(p.content))
+      s.pages.some((p) => !pageHasWrittenContent(p.content))
     );
     if (anyPageEmpty) return 4;
     return 5;

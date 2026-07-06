@@ -95,6 +95,33 @@ class BookApiTest extends TestCase
         $this->assertTrue($book->fresh()->is_published);
     }
 
+    public function test_publish_rejects_book_with_empty_page_content(): void
+    {
+        $author = $this->actingAuthor();
+        Sanctum::actingAs($author);
+
+        $book = Book::factory()->draft()->create([
+            'author_id' => $author->id,
+            'title' => 'Boş sayfa '.uniqid(),
+        ]);
+        $section = Section::factory()->create([
+            'book_id' => $book->id,
+            'title' => 'Bölüm 1',
+            'order' => 0,
+        ]);
+        Page::factory()->create([
+            'section_id' => $section->id,
+            'content' => '<p></p>',
+            'order' => 0,
+        ]);
+
+        $publish = $this->postJson('/api/books/'.$book->id.'/publish');
+
+        $publish->assertStatus(400)
+            ->assertJsonPath('success', false);
+        $this->assertFalse($book->fresh()->is_published);
+    }
+
     public function test_author_can_view_own_draft(): void
     {
         $author = $this->actingAuthor();

@@ -8,6 +8,8 @@ import { BookApi } from '@/features/books/infrastructure/api/book.api';
 import { BookRepositoryImpl } from '@/features/books/infrastructure/repositories/book.repository.impl';
 import { PublishBookUseCase } from '@/features/books/application/use-cases/publish-book.use-case';
 import { BookEntity } from '@/features/books';
+import { pageHasWrittenContent } from '@/lib/page-content';
+import { getWizardSectionPages } from '../../utils/wizard-section-pages';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -29,6 +31,9 @@ export function PublishStep() {
     setCurrentBook,
     setDraftBookId,
     saveDraft,
+    sections,
+    pages,
+    validateStep,
   } = useBookEditorStore();
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -42,6 +47,18 @@ export function PublishStep() {
   const publishBookUseCase = new PublishBookUseCase(bookRepository);
 
   const isPublished = Boolean(currentBook?.isPublished);
+  const canPublish = validateStep(5);
+
+  const emptyPageLabels = sections.flatMap((section) => {
+    const sectionPages = getWizardSectionPages(section, pages);
+    return sectionPages
+      .map((page, index) =>
+        pageHasWrittenContent(page.content)
+          ? null
+          : `${section.title} — Sayfa ${index + 1}`
+      )
+      .filter((label): label is string => label != null);
+  });
 
   const handleUnpublish = async () => {
     setIsUnpublishing(true);
@@ -120,6 +137,10 @@ export function PublishStep() {
   };
 
   const handlePublish = async () => {
+    if (!canPublish) {
+      setError('Boş sayfa içeren kitaplar yayınlanamaz. Lütfen tüm sayfaları doldurun.');
+      return;
+    }
     setIsPublishing(true);
     setError(null);
 
@@ -178,6 +199,16 @@ export function PublishStep() {
         </p>
       </div>
 
+      {emptyPageLabels.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Boş sayfalar: {emptyPageLabels.join(', ')}. Yayınlamadan önce bu sayfaları doldurun
+            veya silin.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -204,7 +235,7 @@ export function PublishStep() {
         <Button
           variant={isPublished ? 'destructive' : 'default'}
           onClick={isPublished ? handleUnpublish : handlePublish}
-          disabled={isSaving || isPublishing || isUnpublishing}
+          disabled={isSaving || isPublishing || isUnpublishing || (!isPublished && !canPublish)}
           className="flex-1"
         >
           {isPublished ? (

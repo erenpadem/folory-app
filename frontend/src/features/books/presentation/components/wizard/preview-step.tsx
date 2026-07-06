@@ -11,6 +11,7 @@ import {
   truncatePreviewBlocks,
   type TipTapPreviewBlock,
 } from '@/lib/tiptap-html-preview';
+import { pageHasWrittenContent } from '@/lib/page-content';
 
 const PAGE_SNIPPET_MAX_CHARS = 360;
 
@@ -56,9 +57,28 @@ export function PreviewStep() {
   );
 
   const hiddenSectionCount = sections.filter((s) => !s.isVisible).length;
+  const emptyPageLabels = sections.flatMap((section) => {
+    const sectionPages = getWizardSectionPages(section, pages);
+    return sectionPages
+      .map((page, index) =>
+        pageHasWrittenContent(page.content)
+          ? null
+          : `${section.title} — Sayfa ${index + 1}`
+      )
+      .filter((label): label is string => label != null);
+  });
 
   return (
     <div className="space-y-6">
+      {emptyPageLabels.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTitle>Boş sayfalar</AlertTitle>
+          <AlertDescription>
+            {emptyPageLabels.join(', ')} — yayınlamadan önce doldurun veya silin.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Book Info Preview */}
       <Card>
         <CardHeader>

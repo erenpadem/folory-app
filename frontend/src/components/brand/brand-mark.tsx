@@ -10,17 +10,15 @@ type LogoWithBetaBadgeProps = {
 
 export function LogoWithBetaBadge({ size = 32, className }: LogoWithBetaBadgeProps) {
   return (
-    <span className={cn("relative inline-flex shrink-0", className)}>
-      <Image
-        src="/assets/logo.svg"
-        width={size}
-        height={size}
-        alt=""
-        aria-hidden
-        priority
-      />
-      <BetaBadge className="absolute -right-2 -top-1.5 scale-[0.85]" />
-    </span>
+    <Image
+      src="/assets/logo.svg"
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden
+      priority
+      className={cn("shrink-0", className)}
+    />
   )
 }
 

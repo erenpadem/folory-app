@@ -110,6 +110,65 @@ class CommentsBookmarksLikesTest extends TestCase
             ->assertJsonPath('data.liked', false);
     }
 
+    public function test_comment_list_includes_is_liked_for_authenticated_user(): void
+    {
+        [$book, $page, $author] = $this->publishedBookWithPage();
+        $reader = User::factory()->create();
+
+        $comment = Comment::create([
+            'user_id' => $author->id,
+            'book_id' => $book->id,
+            'content' => 'Yorum',
+            'depth' => 0,
+        ]);
+
+        Sanctum::actingAs($reader);
+        $this->postJson('/api/comments/'.$comment->id.'/like')->assertOk();
+
+        $this->getJson('/api/comments/book/'.$book->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.is_liked', true)
+            ->assertJsonPath('data.0.likes_count', 1);
+    }
+
+    public function test_comment_list_includes_resolved_tag_links(): void
+    {
+        [$book, $page, $author] = $this->publishedBookWithPage();
+        $reader = User::factory()->create(['username' => 'mentionreader']);
+        $mentioned = User::factory()->create(['username' => 'mentioneduser']);
+        $section = Section::query()->where('book_id', $book->id)->firstOrFail();
+
+        $content = sprintf(
+            '@author{%d} @book{%d} @section{%d} @page{%d}',
+            $mentioned->id,
+            $book->id,
+            $section->id,
+            $page->id
+        );
+
+        Comment::create([
+            'user_id' => $reader->id,
+            'book_id' => $book->id,
+            'content' => $content,
+            'depth' => 0,
+        ]);
+
+        $bookPath = rawurlencode($book->slug ?: (string) $book->id);
+
+        $this->getJson('/api/comments/book/'.$book->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.tag_links.author:'.$mentioned->id, '/profile/mentioneduser')
+            ->assertJsonPath('data.0.tag_links.book:'.$book->id, '/book/'.$bookPath)
+            ->assertJsonPath(
+                'data.0.tag_links.section:'.$section->id,
+                '/book/'.$bookPath.'/read/'.$section->id.'/'.$page->id
+            )
+            ->assertJsonPath(
+                'data.0.tag_links.page:'.$page->id,
+                '/book/'.$bookPath.'/read/'.$section->id.'/'.$page->id
+            );
+    }
+
     public function test_user_can_bookmark_page(): void
     {
         [$book, $page, $author] = $this->publishedBookWithPage();
