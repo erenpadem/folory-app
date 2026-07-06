@@ -69,7 +69,36 @@ export function PagesWriteStep() {
     ? activeSectionPages.find((p) => p.id === activePageId)
     : null;
 
-  /** Adres çubuğu / geri ile gelen ?section=&page= → store (URL ile store çelişirse URL baskın). */
+  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+
+  const createPageInSection = (sectionId: number): number => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return activePageId ?? activePage!.id;
+    const list = sortWizardSectionPages(section, pages);
+    const tempId = -(Date.now() + Math.floor(Math.random() * 1000));
+    const now = new Date();
+    const newPage = new PageEntity(
+      tempId,
+      sectionId,
+      '',
+      list.length,
+      now,
+      now
+    );
+    addPage(sectionId, newPage);
+    return newPage.id;
+  };
+
+  const activateSectionForWrite = (sectionId: number): void => {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return;
+    const list = sortWizardSectionPages(section, pages);
+    const pageId = list[0]?.id ?? createPageInSection(sectionId);
+    setActiveSection(sectionId);
+    setActivePage(pageId);
+  };
+
+  /** Adres çubuğu / geri ile gelen ?section=&page= → store (yalnızca URL değişince; dropdown ile store güncellenince ezilmesin). */
   useEffect(() => {
     if (currentStep !== 4 || sections.length === 0) return;
     const sectionQ = searchParams.get(WIZARD_URL_SECTION);
@@ -80,7 +109,10 @@ export function PagesWriteStep() {
     if (!secFromUrl) return;
 
     const list = sortWizardSectionPages(secFromUrl, pages);
-    if (list.length === 0) return;
+    if (list.length === 0) {
+      activateSectionForWrite(secFromUrl.id);
+      return;
+    }
 
     const n = parseInt(pageQ, 10);
     const idx =
@@ -88,15 +120,16 @@ export function PagesWriteStep() {
     const page = list[idx];
     if (!page) return;
 
+    const st = useBookEditorStore.getState();
     const slugStore =
-      activeSectionId != null
-        ? sections.find((s) => s.id === activeSectionId)
+      st.activeSectionId != null
+        ? sections.find((s) => s.id === st.activeSectionId)
         : undefined;
     const slugCur =
       slugStore != null ? getWizardSectionSlug(slugStore, sections) : null;
     const oneCur =
-      slugStore != null && activePageId != null
-        ? getWizardPageOneBased(activePageId, slugStore, pages)
+      slugStore != null && st.activePageId != null
+        ? getWizardPageOneBased(st.activePageId, slugStore, pages)
         : null;
 
     if (
@@ -108,16 +141,8 @@ export function PagesWriteStep() {
 
     setActiveSection(secFromUrl.id);
     setActivePage(page.id);
-  }, [
-    currentStep,
-    sections,
-    pages,
-    searchParams,
-    activeSectionId,
-    activePageId,
-    setActiveSection,
-    setActivePage,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- URL→store: yalnızca searchParams/sections/pages; activeSectionId dep'e eklenmez (dropdown yarışı)
+  }, [currentStep, sections, pages, searchParams, setActiveSection, setActivePage]);
 
   /** Store → URL (yazım adımında konum paylaşılabilir / yenilenebilir). */
   useEffect(() => {
@@ -184,26 +209,6 @@ export function PagesWriteStep() {
 
   const pageIndex = activeSectionPages.findIndex((p) => p.id === activePage.id);
 
-  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
-
-  const createPageInSection = (sectionId: number): number => {
-    const section = sections.find((s) => s.id === sectionId);
-    if (!section) return activePage!.id;
-    const list = sortWizardSectionPages(section, pages);
-    const tempId = -(Date.now() + Math.floor(Math.random() * 1000));
-    const now = new Date();
-    const newPage = new PageEntity(
-      tempId,
-      sectionId,
-      '',
-      list.length,
-      now,
-      now
-    );
-    addPage(sectionId, newPage);
-    return newPage.id;
-  };
-
   const currentSectionPagePickerOptions = activeSectionPages.map((p, idx) => ({
     pageId: p.id,
     sectionId: activeSection!.id,
@@ -236,14 +241,7 @@ export function PagesWriteStep() {
         setActiveSection(sectionId);
         setActivePage(pageId);
       }}
-      onActivateSection={(sectionId) => {
-        const section = sections.find((s) => s.id === sectionId);
-        if (!section) return;
-        const list = sortWizardSectionPages(section, pages);
-        const pageId = list[0]?.id ?? createPageInSection(sectionId);
-        setActiveSection(sectionId);
-        setActivePage(pageId);
-      }}
+      onActivateSection={activateSectionForWrite}
       onCreateNewPage={() => {
         if (!activeSectionId) return;
         const pageId = createPageInSection(activeSectionId);

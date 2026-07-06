@@ -2,7 +2,7 @@
 'use client'
 
 import { BookStarRating } from "./BookStarRating"
-import { Bookmark, Eye, Heart, MoreVertical, Play, Share2, FlagIcon, UserIcon, TrashIcon } from "lucide-react"
+import { Bookmark, Eye, Heart, MoreVertical, Play, FlagIcon, UserIcon, TrashIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -10,16 +10,14 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { BookShareDialog } from "@/components/book/BookShareDialog"
 import { BookEntity } from "@/features/books"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import type { ReadingPosition } from "@/lib/book-reading-progress"
 
 interface BookHeroProps {
@@ -33,6 +31,7 @@ interface BookHeroProps {
   onToggleDescription: () => void
   resumeReading?: ReadingPosition | null
   onRated?: () => void
+  onClearHistory?: () => void
 }
 
 export function BookHero({ 
@@ -46,12 +45,9 @@ export function BookHero({
   onToggleDescription,
   resumeReading = null,
   onRated,
+  onClearHistory,
 }: BookHeroProps) {
   const router = useRouter()
-
-  const TwitterIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" /></svg>
-
-  const FacebookIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
 
   const bookSlug = book.slug || String(book.id)
 
@@ -73,6 +69,27 @@ export function BookHero({
   }
 
   const readCtaLabel = resumeReading ? 'Okumaya Devam Et' : 'Okumaya Başla'
+
+  const goToAuthorProfile = () => {
+    if (book.authorUsername) {
+      router.push(`/profile/${book.authorUsername}`)
+      return
+    }
+    toast.error('Yazar profili bulunamadı')
+  }
+
+  const handleReport = () => {
+    const subject = encodeURIComponent(`Şikayet: ${book.title}`)
+    const body = encodeURIComponent(
+      `Kitap: ${book.title}\nURL: ${typeof window !== 'undefined' ? window.location.href : ''}\n\nŞikayetinizi buraya yazın:`
+    )
+    window.location.href = `mailto:destek@fo-lory.com?subject=${subject}&body=${body}`
+  }
+
+  const handleClearHistory = () => {
+    onClearHistory?.()
+    toast.success('Okuma geçmişi temizlendi')
+  }
 
   /** Reader-facing counts: only visible sections */
   const visibleSections = book.sections.filter((s) => s.isVisible)
@@ -112,7 +129,17 @@ export function BookHero({
             <div>
               <h1 className="text-3xl font-bold tracking-tight">{book.title}</h1>
               <p className="text-lg text-muted-foreground">
-                {book.authorName ?? 'Yazar bilgisi yok'}
+                {book.authorUsername ? (
+                  <button
+                    type="button"
+                    className="hover:text-foreground hover:underline transition-colors"
+                    onClick={goToAuthorProfile}
+                  >
+                    {book.authorName ?? book.authorUsername}
+                  </button>
+                ) : (
+                  book.authorName ?? 'Yazar bilgisi yok'
+                )}
               </p>
             </div>
             <div className="flex gap-2">
@@ -120,55 +147,7 @@ export function BookHero({
                 <Bookmark className={`h-5 w-5 ${isSaved ? 'fill-current' : ''}`} />
               </Button>
 
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Share2 className="h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-semibold">Paylaşım Seçenekleri</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                      Bu kitabı paylaşmak için bir yöntem seçin
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Bağlantıyı Kopyala</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          className="bg-muted/50 border-border flex-1"
-                          value={typeof window !== 'undefined' ? `${window.location.origin}/book/${bookSlug}` : ''}
-                          readOnly
-                        />
-                        <Button variant="secondary" size="sm" onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            navigator.clipboard.writeText(`${window.location.origin}/book/${bookSlug}`)
-                          }
-                        }}>
-                          Kopyala
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" className="gap-2">
-                        <TwitterIcon />
-                        Twitter
-                      </Button>
-                      <Button variant="outline" className="gap-2">
-                        <FacebookIcon />
-                        Facebook
-                      </Button>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="ghost">Kapat</Button>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <BookShareDialog book={book} />
 
               <Dialog>
                 <DialogTrigger asChild>
@@ -182,19 +161,32 @@ export function BookHero({
                   </DialogHeader>
                   <div className="grid gap-1 py-2">
                     <DialogClose asChild>
-                      <Button variant="ghost" className="justify-start gap-2">
+                      <Button
+                        variant="ghost"
+                        className="justify-start gap-2"
+                        onClick={handleReport}
+                      >
                         <FlagIcon className="h-4 w-4" />
                         Şikayet Et
                       </Button>
                     </DialogClose>
                     <DialogClose asChild>
-                      <Button variant="ghost" className="justify-start gap-2">
+                      <Button
+                        variant="ghost"
+                        className="justify-start gap-2"
+                        onClick={handleClearHistory}
+                      >
                         <TrashIcon className="h-4 w-4" />
                         Geçmişi Temizle
                       </Button>
                     </DialogClose>
                     <DialogClose asChild>
-                      <Button variant="ghost" className="justify-start gap-2">
+                      <Button
+                        variant="ghost"
+                        className="justify-start gap-2"
+                        onClick={goToAuthorProfile}
+                        disabled={!book.authorUsername}
+                      >
                         <UserIcon className="h-4 w-4" />
                         Yazar Profili
                       </Button>

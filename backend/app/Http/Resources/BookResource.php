@@ -162,6 +162,7 @@ class BookResource extends JsonResource
             'author' => $model && $model->author ? [
                 'id' => $model->author->id,
                 'name' => $model->author->name,
+                'username' => $model->author->username,
                 'avatar' => $model->author->avatar,
             ] : null,
             'category' => $model && $model->category ? [

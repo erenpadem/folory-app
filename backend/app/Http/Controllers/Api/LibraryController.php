@@ -167,4 +167,20 @@ class LibraryController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Kayıtlı okuma konumunu sıfırla (kitap detay — geçmişi temizle).
+     */
+    public function clearProgress(int $bookId, Request $request): JsonResponse
+    {
+        BookReading::where('user_id', $request->user()->id)
+            ->where('book_id', $bookId)
+            ->update([
+                'last_section_id' => null,
+                'last_page_id' => null,
+                'progress_percentage' => 0,
+            ]);
+
+        return response()->json(['success' => true]);
+    }
 }

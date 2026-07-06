@@ -104,4 +104,26 @@ class LibraryApiTest extends TestCase
             'progress_percentage' => 10,
         ])->assertStatus(422);
     }
+
+    public function test_reader_can_clear_reading_progress(): void
+    {
+        [$book, $section, $page] = $this->publishedBookWithPage();
+        $reader = User::factory()->create();
+
+        Sanctum::actingAs($reader);
+
+        $this->patchJson('/api/library/'.$book->id.'/progress', [
+            'last_section_id' => $section->id,
+            'last_page_id' => $page->id,
+            'progress_percentage' => 55,
+        ])->assertOk();
+
+        $this->deleteJson('/api/library/'.$book->id.'/progress')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->getJson('/api/library/'.$book->id.'/reading')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+    }
 }

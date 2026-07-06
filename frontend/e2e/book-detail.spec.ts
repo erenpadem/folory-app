@@ -70,4 +70,21 @@ test.describe('Book detail', () => {
     await expect(page.getByText(/bulunamadı|hata/i)).toBeVisible({ timeout: 15_000 });
     await expectNoAppCrash(page);
   });
+
+  test('author profile action navigates from other actions menu', async ({ page, request }) => {
+    const book = await getReadableBook(request);
+    test.skip(!book, 'No readable book seeded');
+
+    const detailRes = await request.get(`${API_BASE}/api/books/${book!.slug}`);
+    test.skip(!detailRes.ok(), 'Book detail unavailable');
+    const authorUsername = (await detailRes.json())?.data?.author?.username;
+    test.skip(!authorUsername, 'Book author username missing');
+
+    await page.goto(`/book/${book!.slug}`);
+    await page.getByRole('button').filter({ has: page.locator('svg.lucide-more-vertical') }).click();
+    await page.getByRole('button', { name: 'Yazar Profili' }).click();
+
+    await page.waitForURL(new RegExp(`/profile/${authorUsername}`), { timeout: 15_000 });
+    expect(page.url()).toContain(`/profile/${authorUsername}`);
+  });
 });

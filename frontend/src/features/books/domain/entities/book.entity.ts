@@ -23,6 +23,7 @@ export class BookEntity {
     public readonly averageRating: number = 0,
     public readonly ratingCount: number = 0,
     public readonly authorName: string | null = null,
+    public readonly authorUsername: string | null = null,
     public readonly slug?: string
   ) {}
 
@@ -86,6 +87,13 @@ export class BookEntity {
       String(data.author.name).trim() !== ''
         ? String(data.author.name)
         : null;
+    const authorUsername =
+      data.author != null &&
+      typeof data.author === 'object' &&
+      data.author.username != null &&
+      String(data.author.username).trim() !== ''
+        ? String(data.author.username)
+        : null;
 
     const isPublished = Boolean(data.is_published);
     const isDraft = isPublished
@@ -112,6 +120,7 @@ export class BookEntity {
       averageRating,
       ratingCount,
       authorName,
+      authorUsername,
       data.slug
     );
   }
@@ -134,7 +143,9 @@ export class BookEntity {
       sections: this.sections.map((s) => s.toPrimitives()),
       average_rating: this.averageRating,
       rating_count: this.ratingCount,
-      author: this.authorName ? { name: this.authorName } : null,
+      author: this.authorName
+        ? { name: this.authorName, username: this.authorUsername }
+        : null,
     };
   }
 }

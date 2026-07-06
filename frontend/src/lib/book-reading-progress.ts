@@ -42,6 +42,19 @@ export function setSessionReading(slug: string, sectionId: number, pageId: numbe
   }
 }
 
+export function clearSessionReading(slug: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.removeItem(sessionReadingKey(slug))
+  } catch {
+    // private mode
+  }
+}
+
+export async function clearReadingProgressFromApi(bookId: number): Promise<void> {
+  await api.delete(`/api/library/${bookId}/progress`)
+}
+
 /**
  * Kayıtlı konum bu kitap yapısında geçerli ve okunabilir mi?
  */

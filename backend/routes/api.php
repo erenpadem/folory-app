@@ -193,6 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/library/{bookId}/check', [LibraryController::class, 'check']);
     Route::get('/library/{bookId}/reading', [LibraryController::class, 'reading']);
     Route::patch('/library/{bookId}/progress', [LibraryController::class, 'updateProgress']);
+    Route::delete('/library/{bookId}/progress', [LibraryController::class, 'clearProgress']);
 
     Route::get('/likes/books', [BookLikeController::class, 'index']);
     Route::post('/likes/toggle', [BookLikeController::class, 'toggle']);

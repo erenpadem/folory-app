@@ -13,6 +13,8 @@ import { recordBookViewOnce } from '@/lib/book-view'
 import {
   getSessionReading,
   resolveResumePosition,
+  clearSessionReading,
+  clearReadingProgressFromApi,
   type ReadingPosition,
 } from '@/lib/book-reading-progress'
 
@@ -167,6 +169,17 @@ export default function BookDetailPage() {
         user != null &&
         Number(user.id) === book.authorId;
 
+    const handleClearHistory = () => {
+        const bookSlug = book.slug || String(book.id);
+        clearSessionReading(bookSlug);
+        setResumePosition(null);
+        if (isAuthenticated) {
+            void clearReadingProgressFromApi(book.id).catch(() => {
+                // oturum açık değilse veya kitap kütüphanede yoksa sessiz
+            });
+        }
+    };
+
     return (
         <div className="bg-background">
             <BookHeader />
@@ -182,6 +195,7 @@ export default function BookDetailPage() {
                 onToggleDescription={() => setShowFullDescription(!showFullDescription)}
                 resumeReading={resolvedResume}
                 onRated={() => queryClient.invalidateQueries({ queryKey: ['book', slug] })}
+                onClearHistory={handleClearHistory}
             />
 
             <BookTabs
