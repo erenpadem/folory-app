@@ -143,6 +143,28 @@ class BookApiTest extends TestCase
         $this->assertSame(1, $book->fresh()->read_count);
     }
 
+    public function test_book_show_marks_viewer_is_author_for_owner(): void
+    {
+        $author = $this->actingAuthor();
+        $book = Book::factory()->published()->create([
+            'author_id' => $author->id,
+            'title' => 'Yazar Kitabı '.uniqid(),
+        ]);
+
+        Sanctum::actingAs($author);
+
+        $this->getJson('/api/books/'.$book->slug)
+            ->assertOk()
+            ->assertJsonPath('data.viewer_is_author', true);
+
+        $reader = User::factory()->create();
+        Sanctum::actingAs($reader);
+
+        $this->getJson('/api/books/'.$book->slug)
+            ->assertOk()
+            ->assertJsonPath('data.viewer_is_author', false);
+    }
+
     public function test_author_can_save_draft_creates_book_with_sections_and_pages(): void
     {
         $author = $this->actingAuthor();

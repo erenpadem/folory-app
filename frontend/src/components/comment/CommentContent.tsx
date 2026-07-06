@@ -12,7 +12,8 @@ interface CommentContentProps {
 }
 
 export function CommentContent({ content, bookId, bookSlug }: CommentContentProps) {
-  const tags = parseCommentTags(content)
+  const safeContent = typeof content === 'string' ? content : ''
+  const tags = parseCommentTags(safeContent)
 
   const getTagIcon = (type: CommentTag['type']) => {
     switch (type) {

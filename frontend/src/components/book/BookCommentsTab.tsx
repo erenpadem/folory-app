@@ -58,7 +58,7 @@ export function BookCommentsTab({ book }: BookCommentsTabProps) {
     addCommentMutation.mutate(comment)
   }
 
-  const comments = commentsData?.data || []
+  const comments = Array.isArray(commentsData?.comments) ? commentsData.comments : []
 
   return (
     <SurfacePanel>

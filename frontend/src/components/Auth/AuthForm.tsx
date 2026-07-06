@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,10 @@ import {
 import { useAuth } from '@/features/auth'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import {
+  extractApiFieldErrors,
+  extractApiValidationMessage,
+} from '@/shared/lib/api-validation'
 
 type AuthFormType = 'login' | 'register' | 'forgot' | 'verify'
 type AuthFormValues = LoginType | RegisterType | ForgotPasswordType | VerifyType
@@ -62,6 +66,7 @@ export function AuthForm({
   const { login, register, loading: authLoading } = useAuth()
   const loading = externalLoading ?? authLoading
   const [passwordVisible, setPasswordVisible] = useState<Record<string, boolean>>({})
+  const submitInFlight = useRef(false)
 
   const togglePasswordField = (fieldKey: string) => {
     setPasswordVisible((prev) => ({ ...prev, [fieldKey]: !prev[fieldKey] }))
@@ -73,6 +78,9 @@ export function AuthForm({
   })
 
   const handleSubmit = async (values: AuthFormValues) => {
+    if (submitInFlight.current || loading) return
+    submitInFlight.current = true
+
     try {
       // If onSubmit prop is provided, use it
       if (onSubmit) {
@@ -99,15 +107,27 @@ export function AuthForm({
       if (redirectOnSuccess) {
         router.push(redirectOnSuccess)
       }
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || 
-                          error?.message || 
-                          'Bir hata oluştu'
+    } catch (error: unknown) {
+      const fieldErrors = extractApiFieldErrors(error)
+      if (fieldErrors) {
+        for (const [field, message] of Object.entries(fieldErrors)) {
+          if (field in defaultValues[type]) {
+            form.setError(field as keyof AuthFormValues, { type: 'server', message })
+          }
+        }
+      }
+
+      const errorMessage =
+        extractApiValidationMessage(error) ||
+        (error as { message?: string })?.message ||
+        'Bir hata oluştu'
       toast.error(errorMessage)
       form.setError('root', {
         type: 'manual',
         message: errorMessage
       })
+    } finally {
+      submitInFlight.current = false
     }
   }
 
@@ -199,8 +219,8 @@ export function AuthForm({
               <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                 <FormControl>
                   <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                    checked={field.value === true}
+                    onCheckedChange={(checked) => field.onChange(checked === true)}
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">

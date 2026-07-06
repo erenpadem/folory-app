@@ -2,34 +2,27 @@
 
 import { useEffect } from 'react'
 import { useAuth } from '@/features/auth'
+import { getAuthToken, clearAuthToken } from '@/shared/lib/auth-token'
 
 /**
  * Global Auth Provider
  * Checks for token on mount and fetches user if authenticated
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { fetchUser, isAuthenticated, user } = useAuth()
+  const { fetchUser, isAuthenticated, user, loading } = useAuth()
 
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || loading) return
 
-    // Check if we have a token
-    const token = localStorage.getItem('auth_token')
-    
-    // Always fetch user if we have a token (even if user exists, to ensure fresh data)
-    if (token && (!user || !isAuthenticated)) {
+    const token = getAuthToken()
+
+    if (token && !user) {
       fetchUser().catch((error) => {
-        // If fetch fails, token might be invalid, clear it
         console.error('Failed to fetch user:', error)
-        localStorage.removeItem('auth_token')
+        clearAuthToken()
       })
-    } else if (!token && (user || isAuthenticated)) {
-      // If no token but user exists, clear user state
-      // This handles logout or expired token scenarios
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only run once on mount
+  }, [fetchUser, user, isAuthenticated, loading])
 
   return <>{children}</>
 }

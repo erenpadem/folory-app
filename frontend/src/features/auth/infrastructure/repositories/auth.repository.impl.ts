@@ -6,6 +6,12 @@ import { AuthRepository, RegisterData } from '../../domain/repositories/auth.rep
 import { LoginCredentials } from '../../domain/value-objects/credentials.vo';
 import { UserEntity } from '../../domain/entities/user.entity';
 import { AuthApi } from '../api/auth.api';
+import { setAuthToken } from '@/shared/lib/auth-token';
+
+function persistAuthToken(token?: string, remember = true) {
+  if (!token) return;
+  setAuthToken(token, remember);
+}
 
 export class AuthRepositoryImpl implements AuthRepository {
   constructor(private readonly authApi: AuthApi) {}
@@ -17,13 +23,13 @@ export class AuthRepositoryImpl implements AuthRepository {
       remember: credentials.remember,
     });
 
-    // Token is already saved by API interceptor
+    persistAuthToken(response.token, credentials.remember);
     return UserEntity.fromPrimitives(response.data);
   }
 
   async register(data: RegisterData): Promise<UserEntity> {
     const response = await this.authApi.register(data);
-    // Token is already saved by API interceptor
+    persistAuthToken(response.token, true);
     return UserEntity.fromPrimitives(response.data);
   }
 

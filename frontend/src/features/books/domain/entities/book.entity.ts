@@ -24,6 +24,7 @@ export class BookEntity {
     public readonly ratingCount: number = 0,
     public readonly authorName: string | null = null,
     public readonly authorUsername: string | null = null,
+    public readonly viewerIsAuthor: boolean = false,
     public readonly slug?: string
   ) {}
 
@@ -121,6 +122,7 @@ export class BookEntity {
       ratingCount,
       authorName,
       authorUsername,
+      Boolean(data.viewer_is_author),
       data.slug
     );
   }

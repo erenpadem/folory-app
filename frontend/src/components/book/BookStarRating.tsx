@@ -42,6 +42,7 @@ export function BookStarRating({
   }, [bookId, isAuthenticated, canRate])
 
   const handleRate = async (score: number) => {
+    if (!canRate) return
     if (!isAuthenticated) {
       router.push(buildLoginUrl({ returnTo: getCurrentReturnTo(), tab: 'register' }))
       return

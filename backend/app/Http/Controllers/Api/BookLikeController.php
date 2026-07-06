@@ -76,6 +76,13 @@ class BookLikeController extends Controller
 
     public function check(int $bookId, Request $request): JsonResponse
     {
+        $book = Book::find($bookId);
+        if ($book && (int) $book->author_id === (int) $request->user()->id) {
+            return response()->json([
+                'is_liked' => false,
+            ]);
+        }
+
         $exists = BookLike::where('user_id', $request->user()->id)
             ->where('book_id', $bookId)
             ->exists();

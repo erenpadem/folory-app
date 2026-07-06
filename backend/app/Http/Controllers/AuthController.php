@@ -85,15 +85,18 @@ class AuthController extends Controller
                 'message' => 'Kayıt başarılı.',
             ], 201);
         } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $firstMessage = collect($errors)->flatten()->first();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Doğrulama hatası.',
-                'errors' => $e->errors(),
+                'message' => $firstMessage ?: 'Doğrulama hatası.',
+                'errors' => $errors,
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kayıt sırasında bir hata oluştu: ' . $e->getMessage(),
+                'message' => 'Kayıt sırasında bir hata oluştu: '.$e->getMessage(),
             ], 500);
         }
     }

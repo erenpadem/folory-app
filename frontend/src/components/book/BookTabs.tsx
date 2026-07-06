@@ -21,14 +21,12 @@ interface BookTabsProps {
 }
 
 export function BookTabs({ activeTab, onTabChange, book }: BookTabsProps) {
-  const { data: commentsCount = 0 } = useQuery({
+  const { data: commentsPayload } = useQuery({
     queryKey: ['book-comments', book.id],
     queryFn: () => fetchBookComments(book.id),
-    select: (payload) => {
-      const list = payload?.data ?? []
-      return Array.isArray(list) ? list.length : 0
-    },
   })
+
+  const commentsCount = commentsPayload?.total ?? 0
 
   return (
     <div className="container pb-8">

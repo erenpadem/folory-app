@@ -58,6 +58,14 @@ class RatingController extends Controller
      */
     public function mine(Request $request, int $bookId): JsonResponse
     {
+        $book = Book::find($bookId);
+        if ($book && (int) $book->author_id === (int) $request->user()->id) {
+            return response()->json([
+                'success' => true,
+                'data' => null,
+            ]);
+        }
+
         $rating = $this->ratingRepository->findByUserIdAndBookId($request->user()->id, $bookId);
 
         return response()->json([

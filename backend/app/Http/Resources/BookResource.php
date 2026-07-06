@@ -105,6 +105,10 @@ class BookResource extends JsonResource
         if ($request->isMethod('POST') && str_contains($request->path(), 'draft')) {
             $shouldIncludeSections = true;
         }
+
+        $viewer = $request->user('sanctum') ?? auth('sanctum')->user();
+        $viewerIsAuthor = $viewer !== null && (int) $viewer->id === (int) $authorId;
+
         if ($shouldIncludeSections) {
             if ($bookId) {
                 $sectionRepository = app(EloquentSectionRepository::class);
@@ -112,10 +116,8 @@ class BookResource extends JsonResource
                 
                 $pageRepository = app(EloquentPageRepository::class);
 
-                $isOwner = $request->user() && (int) $request->user()->id === (int) $authorId;
-
                 foreach ($sectionEntities as $section) {
-                    if (!$section->isVisible() && !$isOwner) {
+                    if (!$section->isVisible() && !$viewerIsAuthor) {
                         continue;
                     }
 
@@ -172,6 +174,7 @@ class BookResource extends JsonResource
             ] : null,
             'average_rating' => $averageRating > 0 ? round($averageRating, 1) : null,
             'rating_count' => $model ? (int) ($model->ratings_count ?? $model->ratings()->count()) : 0,
+            'viewer_is_author' => $viewerIsAuthor,
             'sections' => $sections,
         ];
     }

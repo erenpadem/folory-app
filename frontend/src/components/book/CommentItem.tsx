@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, getAvatarColor } from '@/lib/avatar-utils'
+import { commentAuthorAvatar, commentAuthorLabel } from '@/lib/comment-user-display'
 import { CommentContent } from '../comment/CommentContent'
 import { MentionTextarea } from '../comment/MentionTextarea'
 import api from '@/shared/lib/api-client'
@@ -18,7 +19,7 @@ export interface BookComment {
   id: number
   content?: string
   text?: string
-  user?: { id?: number; name?: string; avatar?: string | null }
+  user?: { id?: number; name?: string | null; username?: string | null; avatar?: string | null }
   user_id?: number
   book_id?: number
   book?: { id?: number; slug?: string }
@@ -38,7 +39,11 @@ interface CommentItemProps {
 }
 
 function displayName(comment: BookComment): string {
-  return comment.user?.name ?? 'Kullanıcı'
+  return commentAuthorLabel(comment.user)
+}
+
+function avatarSrc(comment: BookComment): string | undefined {
+  return commentAuthorAvatar(comment.user)
 }
 
 function displayDate(comment: BookComment): string {
@@ -126,7 +131,7 @@ export function CommentItem({
 
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={comment.user?.avatar ?? undefined} />
+            <AvatarImage src={avatarSrc(comment)} />
             <AvatarFallback className={getAvatarColor(displayName(comment))}>
               {getInitials(displayName(comment))}
             </AvatarFallback>

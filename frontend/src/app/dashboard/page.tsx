@@ -311,6 +311,7 @@ export default function DashboardPage() {
                             ? {
                                 id: comment.user.id,
                                 name: comment.user.name,
+                                username: comment.user.username,
                                 avatar: comment.user.avatar,
                               }
                             : undefined,

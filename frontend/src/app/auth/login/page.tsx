@@ -48,7 +48,11 @@ export default function LoginPage() {
 
   const handleLogin = async (values: LoginType) => {
     try {
-      await login({ email: values.email, password: values.password })
+      await login({
+        email: values.email,
+        password: values.password,
+        remember: values.remember ?? false,
+      })
       toast.success('Giriş başarılı! Yönlendiriliyorsunuz...')
       // Redirect will be handled by useEffect
     } catch (err) {
@@ -57,12 +61,10 @@ export default function LoginPage() {
   }
 
   const handleRegister = async (values: RegisterType) => {
-    try {
-      await register(values)
-      toast.success('Kayıt başarılı! Giriş yapabilirsiniz.')
-    } catch (err) {
-      // Error is already handled by the auth store
-    }
+    await register(values)
+    toast.success('Kayıt başarılı! Yönlendiriliyorsunuz...')
+    const returnTo = searchParams.get('returnTo')
+    router.push(returnTo || '/')
   }
 
   return (

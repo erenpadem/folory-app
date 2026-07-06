@@ -4,6 +4,7 @@
  */
 import axios, { type AxiosInstance } from 'axios';
 import toast from 'react-hot-toast';
+import { clearAuthToken, getAuthToken, setAuthToken } from '@/shared/lib/auth-token';
 
 export function normalizeApiUrl(url?: string) {
   if (!url) return url;
@@ -35,7 +36,7 @@ function createApiClient(): AxiosInstance {
       config.url = normalizeApiUrl(config.url);
 
       if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('auth_token');
+        const token = getAuthToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -52,7 +53,7 @@ function createApiClient(): AxiosInstance {
     (response) => {
       // Save token if present in response
       if (response.data?.data?.token && typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', response.data.data.token);
+        setAuthToken(response.data.data.token, true);
       }
       return response;
     },
@@ -65,7 +66,7 @@ function createApiClient(): AxiosInstance {
 
         // Clear token on 401
         if (status === 401 && typeof window !== 'undefined') {
-          localStorage.removeItem('auth_token');
+          clearAuthToken();
         }
 
         const rawUrl = config?.url ?? '';

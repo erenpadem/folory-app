@@ -3,6 +3,7 @@
  * HTTP client for authentication endpoints
  */
 import api from '@/shared/lib/api-client';
+import { clearAuthToken } from '@/shared/lib/auth-token';
 import { UserResponseDto } from '../../application/dto/auth.dto';
 
 interface AuthResponse {
@@ -52,7 +53,7 @@ export class AuthApi {
   async logout() {
     const response = await api.post<{ success: boolean; message?: string }>('/api/logout');
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
+      clearAuthToken();
     }
     return response.data;
   }

@@ -12,6 +12,23 @@ import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 import { LoginRequestDto, RegisterRequestDto } from '../../application/dto/auth.dto';
 import { AuthRepositoryImpl } from '../../infrastructure/repositories/auth.repository.impl';
 import { AuthApi } from '../../infrastructure/api/auth.api';
+import {
+  extractApiFieldErrors,
+  extractApiValidationMessage,
+} from '@/shared/lib/api-validation';
+import { clearAuthToken, getAuthToken } from '@/shared/lib/auth-token';
+
+function isDuplicateEmailError(error: unknown): boolean {
+  const message = extractApiValidationMessage(error) ?? '';
+  const fieldError = extractApiFieldErrors(error)?.email ?? '';
+  return (
+    message.includes('zaten kullanılıyor') ||
+    fieldError.includes('zaten kullanılıyor')
+  );
+}
+
+let registerInFlight: Promise<UserEntity> | null = null;
+let loginInFlight: Promise<UserEntity> | null = null;
 
 // Dependency Injection
 const authApi = new AuthApi();
@@ -55,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set({ user: null, isAuthenticated: false });
             if (typeof window !== 'undefined') {
-              localStorage.removeItem('auth_token');
+              clearAuthToken();
             }
           }
           return user;
@@ -66,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
             error: error?.message || 'Kullanıcı bilgileri alınamadı',
           });
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('auth_token');
+            clearAuthToken();
           }
           throw error;
         } finally {
@@ -75,45 +92,82 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: async (credentials) => {
-        try {
-          set({ loading: true, error: null });
-          const user = await loginUseCase.execute(credentials);
-          set({ user, isAuthenticated: true, error: null });
-          return user;
-        } catch (error: any) {
-          const errorMessage = error?.response?.data?.message || 
-                              error?.message || 
-                              'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.';
-          set({
-            error: errorMessage,
-            user: null,
-            isAuthenticated: false,
-          });
-          throw new Error(errorMessage);
-        } finally {
-          set({ loading: false });
-        }
+        if (loginInFlight) return loginInFlight;
+
+        loginInFlight = (async () => {
+          try {
+            set({ loading: true, error: null });
+            const user = await loginUseCase.execute(credentials);
+            set({ user, isAuthenticated: true, error: null });
+            return user;
+          } catch (error: unknown) {
+            const errorMessage =
+              extractApiValidationMessage(error) ||
+              (error as { message?: string })?.message ||
+              'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.';
+            set({
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            throw new Error(errorMessage);
+          } finally {
+            set({ loading: false });
+            loginInFlight = null;
+          }
+        })();
+
+        return loginInFlight;
       },
 
       register: async (data) => {
-        try {
-          set({ loading: true, error: null });
-          const user = await registerUseCase.execute(data);
-          set({ user, isAuthenticated: true, error: null });
-          return user;
-        } catch (error: any) {
-          const errorMessage = error?.response?.data?.message || 
-                              error?.message || 
-                              'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.';
-          set({
-            error: errorMessage,
-            user: null,
-            isAuthenticated: false,
-          });
-          throw new Error(errorMessage);
-        } finally {
-          set({ loading: false });
-        }
+        if (registerInFlight) return registerInFlight;
+
+        registerInFlight = (async () => {
+          try {
+            set({ loading: true, error: null });
+            const user = await registerUseCase.execute(data);
+            set({ user, isAuthenticated: true, error: null });
+            return user;
+          } catch (error: unknown) {
+            const errorMessage =
+              extractApiValidationMessage(error) ||
+              (error as { message?: string })?.message ||
+              'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.';
+
+            if (isDuplicateEmailError(error)) {
+              const token =
+                typeof window !== 'undefined' ? getAuthToken() : null;
+              const existingUser = get().user;
+              if (token && existingUser) {
+                set({ user: existingUser, isAuthenticated: true, error: null });
+                return existingUser;
+              }
+              try {
+                const user = await loginUseCase.execute({
+                  email: data.email,
+                  password: data.password,
+                });
+                set({ user, isAuthenticated: true, error: null });
+                return user;
+              } catch {
+                /* fall through to register error */
+              }
+            }
+
+            set({
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            throw new Error(errorMessage);
+          } finally {
+            set({ loading: false });
+            registerInFlight = null;
+          }
+        })();
+
+        return registerInFlight;
       },
 
       logout: async () => {
@@ -121,7 +175,7 @@ export const useAuthStore = create<AuthState>()(
           set({ loading: true });
           await logoutUseCase.execute();
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('auth_token');
+            clearAuthToken();
           }
           set({ user: null, isAuthenticated: false, error: null });
         } catch (error: any) {
@@ -133,7 +187,7 @@ export const useAuthStore = create<AuthState>()(
           });
           // Clear local state even if API call fails
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('auth_token');
+            clearAuthToken();
           }
           set({ user: null, isAuthenticated: false });
           throw new Error(errorMessage);

@@ -17,12 +17,13 @@ import {
   clearReadingProgressFromApi,
   type ReadingPosition,
 } from '@/lib/book-reading-progress'
+import { isBookAuthor } from '@/lib/book-ownership'
 
 export default function BookDetailPage() {
     const { slug } = useParams()
     const router = useRouter()
     const queryClient = useQueryClient()
-    const { user, isAuthenticated } = useAuth()
+    const { user, isAuthenticated, loading: authLoading } = useAuth()
     const [isSaved, setIsSaved] = useState(false)
     const [isLiked, setIsLiked] = useState(false)
     const [activeTab, setActiveTab] = useState('about')
@@ -30,15 +31,20 @@ export default function BookDetailPage() {
     const [book, setBook] = useState<BookEntity | null>(null)
     const [resumePosition, setResumePosition] = useState<ReadingPosition | null>(null)
 
+    const isOwner =
+        !authLoading &&
+        book != null &&
+        isBookAuthor(book, user)
+
     // Load book data - always use slug
     const { data: bookData, isLoading, error } = useQuery({
-        queryKey: ['book', slug],
+        queryKey: ['book', slug, user?.id ?? null],
         queryFn: async () => {
             // Always use slug for API call
             const response = await api.get(`/api/books/${slug}`);
             return response.data;
         },
-        enabled: !!slug,
+        enabled: !!slug && !authLoading,
     })
 
     useEffect(() => {
@@ -62,7 +68,7 @@ export default function BookDetailPage() {
 
     // Must stay above any early return (Rules of Hooks)
     useEffect(() => {
-        if (!book?.id || !isAuthenticated || !user) return;
+        if (!book?.id || !isAuthenticated || !user || isOwner) return;
         const checkStatus = async () => {
             try {
                 const [savedRes, likedRes] = await Promise.all([
@@ -76,7 +82,7 @@ export default function BookDetailPage() {
             }
         };
         void checkStatus();
-    }, [book?.id, isAuthenticated, user]);
+    }, [book?.id, isAuthenticated, user, isOwner]);
 
     useEffect(() => {
         if (!slug) return;
@@ -111,7 +117,7 @@ export default function BookDetailPage() {
               )
             : null;
 
-    if (isLoading) {
+    if (isLoading || authLoading) {
         return (
             <div className="container mx-auto py-8">
                 <div className="text-center py-12">
@@ -155,6 +161,9 @@ export default function BookDetailPage() {
 
     const handleLike = async () => {
         if (!book || !requireAuth()) return;
+        if (isOwner) {
+            return;
+        }
         try {
             const res = await api.post('/api/likes/toggle', { book_id: book.id });
             // API returns toggled state
@@ -163,11 +172,6 @@ export default function BookDetailPage() {
             console.error('Like error:', error);
         }
     };
-
-    const isOwner =
-        isAuthenticated &&
-        user != null &&
-        Number(user.id) === book.authorId;
 
     const handleClearHistory = () => {
         const bookSlug = book.slug || String(book.id);

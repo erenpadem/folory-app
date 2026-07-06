@@ -9,6 +9,7 @@ import api from '@/shared/lib/api-client'
 import Link from 'next/link'
 import { CommentContent } from '../comment/CommentContent'
 import { Card, CardContent } from '@/components/ui/card'
+import { unwrapResourceCollection } from '@/shared/lib/unwrap-resource-collection'
 
 interface ProfileCommentsProps {
   userId: string | number
@@ -51,7 +52,7 @@ export const ProfileComments = ({ userId, isOwnProfile }: ProfileCommentsProps) 
     )
   }
 
-  const comments: Comment[] = data?.data || []
+  const comments: Comment[] = unwrapResourceCollection<Comment>(data)
 
   if (!comments || comments.length === 0) {
     return (

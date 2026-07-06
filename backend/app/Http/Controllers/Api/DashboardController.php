@@ -55,6 +55,7 @@ class DashboardController extends Controller
                     'user' => $comment->user ? [
                         'id' => $comment->user->id,
                         'name' => $comment->user->name,
+                        'username' => $comment->user->username,
                         'avatar' => $comment->user->avatar,
                     ] : null,
                     'book' => $comment->book ? [
@@ -82,6 +83,7 @@ class DashboardController extends Controller
                     'user' => $rating->user ? [
                         'id' => $rating->user->id,
                         'name' => $rating->user->name,
+                        'username' => $rating->user->username,
                         'avatar' => $rating->user->avatar,
                     ] : null,
                     'book' => $rating->book ? [

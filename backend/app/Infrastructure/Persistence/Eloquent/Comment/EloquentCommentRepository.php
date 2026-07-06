@@ -33,6 +33,7 @@ class EloquentCommentRepository implements CommentRepositoryInterface
     public function findByParentId(int $parentId): array
     {
         $models = CommentModel::where('parent_id', $parentId)
+            ->with(['user', 'book'])
             ->orderBy('created_at', 'asc')
             ->get();
         return $models->map(fn($model) => $this->toEntity($model))->toArray();

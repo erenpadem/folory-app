@@ -47,6 +47,27 @@ class CommentsBookmarksLikesTest extends TestCase
             ->assertJsonStructure(['data', 'meta']);
     }
 
+    public function test_book_comments_include_commenter_name_and_username(): void
+    {
+        [$book, $page, $author] = $this->publishedBookWithPage();
+        $reader = User::factory()->create([
+            'name' => 'Ayşe Yorumcu',
+            'username' => 'ayseyorum',
+        ]);
+
+        Comment::create([
+            'user_id' => $reader->id,
+            'book_id' => $book->id,
+            'content' => 'Harika bir kitap!',
+            'depth' => 0,
+        ]);
+
+        $this->getJson('/api/comments/book/'.$book->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.user.name', 'Ayşe Yorumcu')
+            ->assertJsonPath('data.0.user.username', 'ayseyorum');
+    }
+
     public function test_reader_can_post_comment(): void
     {
         [$book, $page, $author] = $this->publishedBookWithPage();
