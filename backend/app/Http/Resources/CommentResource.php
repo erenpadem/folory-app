@@ -20,7 +20,7 @@ class CommentResource extends JsonResource
     public function toArray(Request $request): array
     {
         $book = $this->resolveBook();
-        $user = $this->resolveUser();
+        $commentUser = $this->resolveUser();
 
         // Get likes count and check if current user liked it
         $likesCount = 0;
@@ -31,9 +31,9 @@ class CommentResource extends JsonResource
                 $model = CommentModel::find($commentId);
                 if ($model) {
                     $likesCount = $model->likesCount();
-                    $user = $request->user('sanctum') ?? auth('sanctum')->user();
-                    if ($user) {
-                        $isLiked = $model->isLikedBy((int) $user->id);
+                    $authUser = $request->user('sanctum') ?? auth('sanctum')->user();
+                    if ($authUser) {
+                        $isLiked = $model->isLikedBy((int) $authUser->id);
                     }
                 }
             }
@@ -57,7 +57,7 @@ class CommentResource extends JsonResource
                 $this->resource->getBookId()
             ),
             'book' => $book,
-            'user' => $user,
+            'user' => $commentUser,
             'likes_count' => $likesCount,
             'is_liked' => $isLiked,
             'created_at' => $this->resource->getCreatedAt() ? $this->resource->getCreatedAt()->format('Y-m-d H:i:s') : null,
