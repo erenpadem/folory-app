@@ -32,19 +32,32 @@ jobs:
       - name: Check deploy secrets
         id: config
         env:
+          # Inline ${{ secrets.* }} boşluk kontrolü güvenilir değil; env üzerinden bak
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY_B64 }}
         run: |
           missing=()
-          [ -z "${{ secrets.DEPLOY_HOST }}" ] && missing+=("DEPLOY_HOST")
-          [ -z "${{ secrets.DEPLOY_USER }}" ] && missing+=("DEPLOY_USER")
-          [ -z "${{ secrets.DEPLOY_PATH }}" ] && missing+=("DEPLOY_PATH")
-          if [ -z "$SSH_KEY_B64" ] && [ -z "$SSH_KEY" ]; then
+          # Değerleri loglama — sadece uzunluk (maskelenmiş secret sızıntısı olmasın)
+          echo "DEPLOY_HOST length: ${#DEPLOY_HOST}"
+          echo "DEPLOY_USER length: ${#DEPLOY_USER}"
+          echo "DEPLOY_PATH length: ${#DEPLOY_PATH}"
+          echo "DEPLOY_SSH_KEY length: ${#SSH_KEY}"
+          echo "DEPLOY_SSH_KEY_B64 length: ${#SSH_KEY_B64}"
+
+          [ -z "${DEPLOY_HOST//[[:space:]]/}" ] && missing+=("DEPLOY_HOST")
+          [ -z "${DEPLOY_USER//[[:space:]]/}" ] && missing+=("DEPLOY_USER")
+          [ -z "${DEPLOY_PATH}" ] && missing+=("DEPLOY_PATH")
+          if [ -z "${SSH_KEY_B64}" ] && [ -z "${SSH_KEY}" ]; then
             missing+=("DEPLOY_SSH_KEY_B64 veya DEPLOY_SSH_KEY")
           fi
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Deploy atlandı — eksik: ${missing[*]}"
+            echo "::warning::Deploy atlandı — eksik/boş: ${missing[*]}"
+            echo "Not: Secret'lar Repository secrets altında olmalı (Environment secrets değil)."
+            echo "Settings → Secrets and variables → Actions → Repository secrets"
             exit 0
           fi
           echo "configured=true" >> "$GITHUB_OUTPUT"
