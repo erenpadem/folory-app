@@ -337,7 +337,7 @@ const Navbar = () => {
                         <div className="p-6 space-y-8">
                             <div className="flex items-center justify-between">
                                 <DrawerTitle className="font-bold text-lg">
-                                    <BrandMark showLogo />
+                                    <BrandMark showLogo showBeta={false} />
                                 </DrawerTitle>
                                 <ThemeChanger />
                             </div>

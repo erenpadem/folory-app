@@ -401,15 +401,20 @@ export default function ExplorePage() {
                       </p>
                     )}
                   </CardContent>
-                  <CardFooter className="flex justify-between items-center text-sm pt-2">
+                  <CardFooter className="flex flex-col items-stretch gap-2 text-sm pt-2">
+                    {book?.category && (
+                      <span className="self-start text-xs text-muted-foreground bg-muted px-2 py-1 rounded whitespace-nowrap">
+                        {book.category.name}
+                      </span>
+                    )}
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4 shrink-0" />
                         <span>{book?.read_count ?? 0}</span>
                       </div>
                       {book?.average_rating && book.average_rating > 0 && (
                         <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <Star className="h-4 w-4 shrink-0 text-yellow-500 fill-yellow-500" />
                           <span className="font-medium">{book.average_rating.toFixed(1)}</span>
                           {book.rating_count && (
                             <span className="text-xs text-muted-foreground">({book.rating_count})</span>
@@ -417,11 +422,6 @@ export default function ExplorePage() {
                         </div>
                       )}
                     </div>
-                    {book?.category && (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                        {book.category.name}
-                      </span>
-                    )}
                   </CardFooter>
                 </Link>
               </Card>
