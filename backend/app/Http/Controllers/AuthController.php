@@ -72,6 +72,7 @@ class AuthController extends Controller
                 'email' => $fields['email'],
                 'password' => Hash::make($fields['password']),
                 'role' => 'reader',
+                'email_verified_at' => config('folory.auto_verify_emails') ? now() : null,
             ]);
 
             $token = $user->createToken('api_token')->plainTextToken;

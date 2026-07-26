@@ -19,6 +19,7 @@ x-backend-env: &backend-env
     DB_HOST: postgres
     REDIS_HOST: redis
     RUN_MIGRATIONS: "true"
+    AUTO_VERIFY_EMAILS: "true"
   depends_on:
     postgres:
       condition: service_healthy
